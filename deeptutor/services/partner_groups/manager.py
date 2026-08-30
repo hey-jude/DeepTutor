@@ -340,7 +340,7 @@ class PartnerGroupManager:
         summary = sessions.get(session_key)
         if summary is None or summary.message_count == 0:
             return "", ""
-        lang = "zh" if str(language or "").lower().startswith("zh") else "en"
+        lang = "zh" if str(language or "").lower().startswith("zh") else "ko" if str(language or "").lower().startswith("ko") else "en"
         header = (
             f"〔以下是 Partner Group「{group.name}」中的另一段公开讨论，由用户附带进来供你参考。"
             "这不是当前对话；请区分各位发言者，不要把他们的发言当成你自己的经历。〕"

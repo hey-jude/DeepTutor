@@ -55,7 +55,7 @@ _PROMPT_CACHE: dict[str, dict[str, Any]] = {}
 
 
 def _load_prompts(language: str) -> dict[str, Any]:
-    lang = "zh" if str(language or "en").lower().startswith("zh") else "en"
+    lang = "zh" if str(language or "en").lower().startswith("zh") else "ko" if str(language or "en").lower().startswith("ko") else "en"
     cached = _PROMPT_CACHE.get(lang)
     if cached is not None:
         return cached

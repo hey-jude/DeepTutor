@@ -109,8 +109,8 @@ _PLACEHOLDER_LABELS = frozenset(
 # Self-Correction loops in LangGraph reduce pedagogical hallucinations" (72) —
 # the same *line* on screen, three times the characters. A single bound set for
 # one of them silently discards every well-formed answer in the other.
-_MAX_LABEL_CHARS = {"zh": 40, "en": 95}
-_MAX_PROMPT_CHARS = {"zh": 160, "en": 400}
+_MAX_LABEL_CHARS = {"zh": 40, "ko": 40, "en": 95}
+_MAX_PROMPT_CHARS = {"zh": 160, "ko": 160, "en": 400}
 
 # One in-flight regeneration per scope; a burst of page loads must not fan out
 # into a burst of LLM calls.
@@ -454,8 +454,39 @@ _SYSTEM_ZH = """你要提出三个"接下来值得探索什么"。每一个都�
 - 不要问候语、不要 emoji、字段文本里不要加引号。"""
 
 
-def _render_topics(topics: list[_Topic], zh: bool) -> str:
-    labels = _SURFACE_LABELS_ZH if zh else _SURFACE_LABELS_EN
+_SYSTEM_KO = """당신은 학습자가 다음에 탐색해 볼 만한 세 가지를 제안합니다. 각 항목은 학습자가 눌러서 학습을 시작하는 한 줄입니다.
+
+학습자가 최근 남긴 흔적(대화, 틀린 문제, 검색, 문서)이 주어집니다. 이 흔적의 배경에 있는 학습 내용을 파악하고, 그와 관련해 구체적이고 이해할 가치가 있는 것을 제안하세요.
+
+각 항목은 두 필드를 가진 객체입니다:
+- "label": 학습자가 읽는 한 줄입니다. 2~12자이며 끝에 구두점을 붙이지 않습니다. 구체적인 개념, 차이, 작동 원리 또는 질문을 나타내며 활동 자체를 나타내면 안 됩니다.
+- "prompt": 학습자가 클릭했을 때 자신의 말로 보내는 메시지입니다. 1인칭의 완전한 문장으로, 좋은 답변을 통해 실제로 배울 수 있을 만큼 구체적으로 작성하세요.
+
+예를 들어 다음과 같이 흔적에서 한 단계 더 나아가세요:
+  흔적: [대화, 2일 전] Agentic RAG 검색 흐름
+  좋음: "Agentic RAG와 naive RAG의 검색 차이는 무엇인가요"
+  나쁨: "Agentic RAG 검색 흐름을 계속 설명해 주세요"  <- 흔적을 되풀이할 뿐 이해할 내용을 제안하지 않습니다
+  나쁨: "검색을 탐색해 주세요"                    <- 질문이 아니라 분야만 말합니다
+
+규칙:
+- 정확히 3개의 객체로 이루어진 JSON 배열만 답하세요. 설명이나 markdown 코드 블록은 쓰지 마세요.
+- 모든 제안은 아래 자료에서 근거를 찾을 수 있어야 합니다. 자료에 적힌 내용에서 한 단계 더 나아가되, 근거 없는 주제를 만들지 마세요.
+- 자료에는 잡음이 섞여 있습니다. 내용이 있는 흔적을 중심으로 하고, "hello" 같은 항목은 건너뛰세요.
+- 세 제안은 서로 달라야 합니다. 자료의 서로 다른 내용을 다루고, 차이·원리·이유·경계 사례처럼 질문의 유형도 다르게 하세요.
+- 인사말, 이모지, 필드 텍스트를 감싼 따옴표는 쓰지 마세요."""
+
+
+def _language(language: str) -> str:
+    lang = str(language or "en").lower()
+    return "zh" if lang.startswith("zh") else "ko" if lang.startswith("ko") else "en"
+
+
+def _render_topics(topics: list[_Topic], language: str) -> str:
+    language = _language(language)
+    zh = language == "zh"
+    ko = language == "ko"
+    # ko는 _SURFACE_LABELS_EN으로 폴백 — 별도 KO 라벨 불필요, EN 라벨이 LLM 프롬프트에 들어가도 한국어 생성에 영향 없음
+    labels = _SURFACE_LABELS_ZH if zh else _SURFACE_LABELS_EN  # ko falls through to EN intentionally
     lines: list[str] = []
     for topic in topics:
         kind = labels.get(topic.surface, topic.surface)
@@ -463,6 +494,8 @@ def _render_topics(topics: list[_Topic], zh: bool) -> str:
             when = ""
         elif zh:
             when = "，今天" if topic.days_ago == 0 else f"，{topic.days_ago} 天前"
+        elif ko:
+            when = "，오늘" if topic.days_ago == 0 else f", {topic.days_ago}일 전"
         else:
             when = ", today" if topic.days_ago == 0 else f", {topic.days_ago}d ago"
         lines.append(f"- [{kind}{when}] {topic.label}")
@@ -470,7 +503,7 @@ def _render_topics(topics: list[_Topic], zh: bool) -> str:
 
 
 def _bound(table: dict[str, int], language: str) -> int:
-    return table["zh"] if _is_zh(language) else table["en"]
+    return table[_language(language)]
 
 
 def _sanitize(raw: str, language: str = "en") -> tuple[Suggestion, ...]:
@@ -530,20 +563,22 @@ async def _generate(language: str, material: _Material) -> SuggestionSet:
         # to invent a learning history.
         return empty
 
-    zh = _is_zh(language)
+    language = _language(language)
+    zh = language == "zh"
+    ko = language == "ko"
     sections: list[str] = []
     if material.profile:
         sections.append(
-            ("# 关于这个学习者（长期记忆）\n" if zh else "# What is known about this learner\n")
+            ("# 关于这个学习者（长期记忆）\n" if zh else "# 이 학습자에 대해 알려진 내용\n" if ko else "# What is known about this learner\n")
             + material.profile
         )
     if material.topics:
         sections.append(
-            ("# 最近的活动痕迹\n" if zh else "# Recent activity\n")
-            + _render_topics(material.topics, zh)
+            ("# 최근 활동 흔적\n" if ko else "# 最近的活动痕迹\n" if zh else "# Recent activity\n")
+            + _render_topics(material.topics, language)
         )
     closing = (
-        "\n请提出那三个探索方向。" if zh else "\nPropose the three things worth exploring next."
+        "\n다음에 탐색할 세 가지를 제안하세요." if ko else "\n请提出那三个探索方向。" if zh else "\nPropose the three things worth exploring next."
     )
     user_prompt = "\n\n".join(sections) + "\n" + closing
 
@@ -557,7 +592,7 @@ async def _generate(language: str, material: _Material) -> SuggestionSet:
             raw = await asyncio.wait_for(
                 complete(
                     prompt=user_prompt,
-                    system_prompt=_SYSTEM_ZH if zh else _SYSTEM_EN,
+                    system_prompt=_SYSTEM_ZH if zh else _SYSTEM_KO if ko else _SYSTEM_EN,
                     temperature=0.8,  # suggestions may vary; these are not facts
                     max_tokens=500,
                 ),

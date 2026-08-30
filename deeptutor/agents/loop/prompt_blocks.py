@@ -26,7 +26,7 @@ class LoopPromptAssembler:
 
     def __init__(self, *, prompts: dict[str, Any], language: str) -> None:
         self.prompts = prompts
-        self.language = "zh" if language.lower().startswith("zh") else "en"
+        self.language = "zh" if language.lower().startswith("zh") else "ko" if language.lower().startswith("ko") else "en"
 
     def system_prompt(
         self,

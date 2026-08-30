@@ -37,7 +37,7 @@ from deeptutor.services.singleflight_cache import AsyncSingleFlightTTLCache
 
 logger = logging.getLogger(__name__)
 
-_MAX_HINT_CHARS = {"zh": 44, "en": 110}
+_MAX_HINT_CHARS = {"zh": 44, "ko": 44, "en": 110}
 _LLM_TIMEOUT = 12.0
 _HISTORY_TURNS = 4
 _MAX_MESSAGE_CHARS = 700
@@ -159,11 +159,29 @@ _SYSTEM_ZH = """你要预测用户接下来最可能在聊天框里打出的**�
 差："这是更随意一点的版本：……"    <- 这是助手的口吻，不是用户的"""
 
 
-def _render(material: _Material, zh: bool) -> str:
-    speaker = {"user": "用户" if zh else "User", "assistant": "助手" if zh else "Assistant"}
+_SYSTEM_KO = """사용자가 채팅창에 다음으로 입력할 가능성이 가장 높은 **한 문장**을 예측하세요. 이는 입력을 시작하기 전에 보이는 자리표시자입니다.
+
+대화의 끝부분을 보고 사용자가 이어서 할 말(후속 질문, 반응, 추가 요청, 다음 단계)을 작성하세요. 반드시 질문일 필요는 없습니다.
+
+규칙:
+- 그 한 문장만 답하세요. 인용부호, 접두어, markdown, 설명은 쓰지 마세요.
+- 사용자가 직접 입력할 법한 1인칭 표현으로, 14단어 이내로 작성하세요.
+- 사용자의 말이어야 하며, 질문을 묘사하거나 어시스턴트의 답변을 쓰면 안 됩니다.
+- 어시스턴트의 직전 답변과 이어져야 하며, 무관한 주제를 꺼내지 마세요."""
+
+
+def _language(language: str) -> str:
+    lang = str(language or "en").lower()
+    return "zh" if lang.startswith("zh") else "ko" if lang.startswith("ko") else "en"
+
+
+def _render(material: _Material, language: str) -> str:
+    zh = language == "zh"
+    ko = language == "ko"
+    speaker = {"user": "用户" if zh else "사용자" if ko else "User", "assistant": "助手" if zh else "어시스턴트" if ko else "Assistant"}
     body = "\n".join(f"[{speaker.get(role, role)}] {text}" for role, text in material.transcript)
-    lines = [("# 对话结尾\n" if zh else "# End of the conversation\n") + body]
-    lines.append("\n请写出用户接下来最可能说的那一句。" if zh else "\nWrite that single next line.")
+    lines = [("# 对话结尾\n" if zh else "# 대화의 끝\n" if ko else "# End of the conversation\n") + body]
+    lines.append("\n请写出用户接下来最可能说的那一句。" if zh else "\n사용자가 다음에 할 한 문장을 작성하세요." if ko else "\nWrite that single next line.")
     return "\n\n".join(lines)
 
 
@@ -214,8 +232,10 @@ def _sanitize(raw: str, language: str, last_user_message: str = "") -> str:
     if not text:
         return ""
 
-    zh = _is_zh(language)
-    limit = _MAX_HINT_CHARS["zh" if zh else "en"]
+    language = _language(language)
+    zh = language == "zh"
+    limit = _MAX_HINT_CHARS["zh" if zh else "ko" if language == "ko" else "en"]
+    # ko uses EN regex intentionally.
     if len(text) > limit:
         return ""
     if (_META_ZH if zh else _META_EN).search(text):
@@ -241,14 +261,14 @@ async def _call_llm(material: _Material, language: str) -> str:
     from deeptutor.services.llm import complete
     from deeptutor.services.model_selection.tasks import task_llm_scope
 
-    zh = _is_zh(language)
+    language = _language(language)
     # Same call class as titles and starter lines — short, frequent, and
     # nobody asked for it — so it runs on the task model when one is set.
     with task_llm_scope():
         return await asyncio.wait_for(
             complete(
-                prompt=_render(material, zh),
-                system_prompt=_SYSTEM_ZH if zh else _SYSTEM_EN,
+                prompt=_render(material, language),
+                system_prompt=_SYSTEM_ZH if language == "zh" else _SYSTEM_KO if language == "ko" else _SYSTEM_EN,
                 temperature=0.7,
                 max_tokens=120,
                 max_retries=0,

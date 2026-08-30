@@ -72,7 +72,10 @@ import { useSplitPane } from "@/features/co-writer/hooks/useSplitPane";
 import { useSynchronizedScroll } from "@/features/co-writer/hooks/useSynchronizedScroll";
 import { useDocumentLifecycle } from "@/features/co-writer/hooks/useDocumentLifecycle";
 import type { NotebookSavePayload } from "@/components/notebook/SaveToNotebookModal";
-import { CO_WRITER_SAMPLE_TEMPLATE } from "@/app/(workspace)/co-writer/sampleTemplate";
+import {
+  getCoWriterSampleTemplate,
+  isCoWriterSampleTemplate,
+} from "@/app/(workspace)/co-writer/sampleTemplate";
 
 const MarkdownRenderer = dynamic(
   () => import("@/components/common/MarkdownRenderer"),
@@ -171,7 +174,7 @@ export interface CoWriterWorkspaceProps {
 }
 
 export default function CoWriterWorkspace({ docId }: CoWriterWorkspaceProps) {
-  const { t } = useTranslation();
+  const { i18n, t } = useTranslation();
   const router = useRouter();
   const draftRevisionRef = useRef(0);
   const lastSavedContentRef = useRef<string>("");
@@ -718,7 +721,7 @@ export default function CoWriterWorkspace({ docId }: CoWriterWorkspaceProps) {
   }, [commitPendingTypingUndo, markdown, pushUndo, t]);
 
   const loadExampleTemplate = useCallback(() => {
-    if (markdown === CO_WRITER_SAMPLE_TEMPLATE) {
+    if (isCoWriterSampleTemplate(markdown)) {
       setStatus(t("Example template is already loaded."));
       setError("");
       return;
@@ -726,12 +729,12 @@ export default function CoWriterWorkspace({ docId }: CoWriterWorkspaceProps) {
 
     commitPendingTypingUndo();
     pushUndo(markdown);
-    setMarkdown(CO_WRITER_SAMPLE_TEMPLATE);
+    setMarkdown(getCoWriterSampleTemplate(i18n.language));
     setStatus(
       t("Loaded example template. Press Ctrl/Cmd+Z or use Undo to restore it."),
     );
     setError("");
-  }, [commitPendingTypingUndo, markdown, pushUndo, t]);
+  }, [commitPendingTypingUndo, i18n.language, markdown, pushUndo, t]);
 
   const requestClearDocument = useCallback(() => {
     if (!markdown) {
@@ -742,7 +745,7 @@ export default function CoWriterWorkspace({ docId }: CoWriterWorkspaceProps) {
   }, [clearDocument, markdown]);
 
   const requestLoadExampleTemplate = useCallback(() => {
-    if (markdown === CO_WRITER_SAMPLE_TEMPLATE) {
+    if (isCoWriterSampleTemplate(markdown)) {
       loadExampleTemplate();
       return;
     }

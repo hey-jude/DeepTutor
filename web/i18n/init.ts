@@ -3,12 +3,13 @@ import { initReactI18next } from "react-i18next";
 
 import enApp from "@/locales/en/app.json";
 
-export type AppLanguage = "en" | "zh";
+export type AppLanguage = "en" | "zh" | "ko";
 
 export function normalizeLanguage(lang: unknown): AppLanguage {
   if (!lang) return "en";
   const s = String(lang).toLowerCase();
   if (s === "zh" || s === "cn" || s === "chinese") return "zh";
+  if (s === "ko" || s === "kr" || s === "korean" || s.startsWith("ko")) return "ko";
   return "en";
 }
 

@@ -88,7 +88,7 @@ def tool_description_i18n(name: str, fallback: str = "") -> dict[str, str]:
 
 
 def localized_description(values: dict[str, str], language: str) -> str:
-    lang = "zh" if (language or "en").lower().startswith("zh") else "en"
+    lang = "zh" if (language or "en").lower().startswith("zh") else "ko" if (language or "en").lower().startswith("ko") else "en"
     return values.get(lang) or values.get("en") or values.get("zh") or ""
 
 

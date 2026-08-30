@@ -387,7 +387,7 @@ _REPORT_TEXT: dict[str, dict[str, str]] = {
 
 
 def _lang(language: str) -> str:
-    return "zh" if str(language or "en").lower().startswith("zh") else "en"
+    return "zh" if str(language or "en").lower().startswith("zh") else "ko" if str(language or "en").lower().startswith("ko") else "en"
 
 
 def _colon(language: str) -> str:

@@ -48,6 +48,16 @@ _JUDGE_SYSTEM_PROMPTS = {
         "- Speak directly to the learner's submission — do not give a generic lecture.\n"
         "- Reply in English."
     ),
+    "ko": (
+        "당신은 학습자의 퀴즈 답안을 채점하는 엄격하면서도 격려하는 조교입니다. "
+        "문제, 모범 답안, 해설을 바탕으로 학습자의 답안에 대해 구체적인 판정과 피드백을 제공하세요.\n\n"
+        "요구사항:\n"
+        "- 첫 줄에 판정을 명시하세요: ✅ 정답 / ⚠️ 부분 정답 / ❌ 오답, 핵심 근거와 함께.\n"
+        "- 이어서 잘한 점, 틀렸거나 빠진 점, 개선 방법을 항목별로 제시하세요.\n"
+        "- 여러 합리적인 답이 가능한 경우 학습자의 합리적인 부분을 인정하세요.\n"
+        "- 학습자의 제출 답안을 직접 대상으로 피드백하세요 — 일반적인 강의는 하지 마세요.\n"
+        "- 반드시 한국어로 답변하세요."
+    ),
 }
 
 
@@ -96,6 +106,33 @@ def _build_judge_user_prompt(
             )
             parts.append(f"{count_text}，请结合图片中的文字/公式/草图一并判定。")
         parts.append("请针对该学习者的具体作答给出 AI 评判。")
+    elif language == "ko":
+        parts = [
+            f"문제 유형: {question_type or 'unknown'}",
+            f"문제:\n{question}",
+        ]
+        if options_block:
+            parts.append(f"선택지:\n{options_block}")
+        if correct_answer:
+            parts.append(f"모범 답안:\n{correct_answer}")
+        if explanation:
+            parts.append(f"해설:\n{explanation}")
+        parts.append(
+            "학습자 답안:\n"
+            + (
+                user_answer.strip()
+                if user_answer and user_answer.strip()
+                else "(이미지만 제출되었고 텍스트 답안은 없습니다)"
+            )
+        )
+        if has_image:
+            count_text = (
+                f"학습자가 답안의 일부로 {image_count}장의 이미지를 첨부했습니다"
+                if image_count > 1
+                else "학습자가 답안의 일부로 이미지를 첨부했습니다"
+            )
+            parts.append(f"{count_text}. 이미지의 텍스트/수식/스케치를 읽고 판정에 반영하세요.")
+        parts.append("이 학습자의 구체적인 답안에 대해 AI 판정을 생성하세요.")
     else:
         parts = [
             f"Question type: {question_type or 'unknown'}",
@@ -219,7 +256,7 @@ async def websocket_quiz_judge(websocket: WebSocket):
             ] | null,
             "user_answer_image": str | null,  # legacy single-image form
             "image_filename": str | null,     # legacy filename for the above
-            "language": "zh" | "en",
+            "language": "zh" | "en" | "ko",
         }
 
     Server → Client (streaming):
@@ -276,11 +313,11 @@ async def websocket_quiz_judge(websocket: WebSocket):
         return
 
     requested_language = (data.get("language") or "").strip().lower()
-    if requested_language not in ("zh", "en"):
+    if requested_language not in ("zh", "en", "ko"):
         requested_language = get_response_language(
             default=_config.get("system", {}).get("language", "en")
         )
-        if requested_language not in ("zh", "en"):
+        if requested_language not in ("zh", "en", "ko"):
             requested_language = "en"
 
     user_answer = data.get("user_answer") or ""

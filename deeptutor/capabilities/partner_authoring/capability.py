@@ -29,7 +29,7 @@ class PartnerAuthoringCapability:
         prompts: dict[str, Any],
     ) -> PromptBlock | None:
         _ = (context, prompts)
-        lang = "zh" if str(language or "").lower().startswith("zh") else "en"
+        lang = "zh" if str(language or "").lower().startswith("zh") else "ko" if str(language or "").lower().startswith("ko") else "en"
         prompt = resources.files(__package__).joinpath("prompts", lang, "system.md")
         return PromptBlock(self.name, prompt.read_text(encoding="utf-8").strip())
 

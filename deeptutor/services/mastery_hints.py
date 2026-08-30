@@ -48,7 +48,7 @@ logger = logging.getLogger(__name__)
 # A placeholder is read in the half-second before typing, so it has to be
 # scannable at a glance. These are the same per-language bounds the starter
 # suggestions use, for the same reason: a character is not a unit of meaning.
-_MAX_HINT_CHARS = {"zh": 44, "en": 110}
+_MAX_HINT_CHARS = {"zh": 44, "ko": 44, "en": 110}
 # Bounded because it sits on a request path. The composer shows its static
 # placeholder until this returns, so an overrun costs a nicety, not a screen.
 _LLM_TIMEOUT = 12.0
@@ -235,7 +235,26 @@ _SYSTEM_ZH = """你要写出学习者此刻**可以问导师的一个问题**。
 差："路由是按意图选工具，对吧？"  <- 把答案说出来了"""
 
 
-def _render(material: _Material, zh: bool) -> str:
+_SYSTEM_KO = """학습자가 지금 튜터에게 물어볼 **질문 하나**를 작성하세요.
+
+현재 숙달 경로의 위치와 대화의 끝부분을 보고, 학습자가 다음에 물어볼 질문을 작성하세요.
+
+규칙:
+- 질문만 답하세요. 인용부호, 접두어, markdown, 설명은 쓰지 마세요.
+- 학습자가 직접 입력할 법한 1인칭으로 14단어 이내로 작성하세요.
+- 물음표로 끝내세요.
+- 현재 지점에 관한 질문이어야 하며, 튜터가 마지막 메시지에서 이미 답한 내용은 묻지 마세요.
+- 차이, 이유, 경계 사례, "건너뛰면 어떻게 되는가"처럼 사고를 여는 질문을 우선하세요."""
+
+
+def _language(language: str) -> str:
+    lang = str(language or "en").lower()
+    return "zh" if lang.startswith("zh") else "ko" if lang.startswith("ko") else "en"
+
+
+def _render(material: _Material, language: str) -> str:
+    zh = language == "zh"
+    ko = language == "ko"
     lines: list[str] = []
     if zh:
         lines.append(f"# 学习主题\n{material.path_name}")
@@ -248,6 +267,18 @@ def _render(material: _Material, zh: bool) -> str:
             where += f"\n类型：{material.waypoint_type}"
         if material.status:
             where += f"\n掌握状态：{material.status}"
+        lines.append(where)
+    elif ko:
+        lines.append(f"# 학습 주제\n{material.path_name}")
+        if material.goal:
+            lines.append(f"# 학습 목표\n{material.goal}")
+        where = f"# 현재 지점\n{material.waypoint}"
+        if material.module_name:
+            where += f" (모듈: {material.module_name})"
+        if material.waypoint_type:
+            where += f"\n유형: {material.waypoint_type}"
+        if material.status:
+            where += f"\n숙달 상태: {material.status}"
         lines.append(where)
     else:
         lines.append(f"# Topic\n{material.path_name}")
@@ -263,15 +294,17 @@ def _render(material: _Material, zh: bool) -> str:
         lines.append(where)
 
     if material.transcript:
-        speaker = {"user": "学习者" if zh else "Learner", "assistant": "导师" if zh else "Tutor"}
+        speaker = {"user": "学习者" if zh else "학습자" if ko else "Learner", "assistant": "导师" if zh else "튜터" if ko else "Tutor"}
         body = "\n".join(
             f"[{speaker.get(role, role)}] {text}" for role, text in material.transcript
         )
-        lines.append(("# 对话结尾\n" if zh else "# End of the conversation\n") + body)
+        lines.append(("# 对话结尾\n" if zh else "# 대화의 끝\n" if ko else "# End of the conversation\n") + body)
     else:
         lines.append(
             "# 对话结尾\n（还没开始，这是他要问的第一个问题。）"
             if zh
+            else "# 대화의 끝\n(아직 대화를 시작하지 않았습니다. 첫 질문입니다.)"
+            if ko
             else "# End of the conversation\n(Nothing yet — this is their opening question.)"
         )
 
@@ -299,7 +332,8 @@ def _sanitize(raw: str, language: str) -> str:
         text = text.split("\n")[-1].strip()
     if not text.endswith(("?", "？")):
         return ""
-    limit = _MAX_HINT_CHARS["zh"] if _is_zh(language) else _MAX_HINT_CHARS["en"]
+    language = _language(language)
+    limit = _MAX_HINT_CHARS["zh" if language == "zh" else "ko" if language == "ko" else "en"]
     if len(text) > limit:
         return ""
     return text
@@ -318,7 +352,8 @@ async def _generate(path_id: str, session_id: str, key_hint: str) -> AskHint:
     except Exception:
         logger.debug("ask-hint: response language unreadable", exc_info=True)
         language = "en"
-    zh = _is_zh(language)
+    language = _language(language)
+    zh = language == "zh"
 
     try:
         from deeptutor.services.llm import complete
@@ -329,8 +364,8 @@ async def _generate(path_id: str, session_id: str, key_hint: str) -> AskHint:
         with task_llm_scope():
             raw = await asyncio.wait_for(
                 complete(
-                    prompt=_render(material, zh),
-                    system_prompt=_SYSTEM_ZH if zh else _SYSTEM_EN,
+                    prompt=_render(material, language),
+                    system_prompt=_SYSTEM_ZH if zh else _SYSTEM_KO if language == "ko" else _SYSTEM_EN,
                     temperature=0.7,
                     max_tokens=120,
                     max_retries=0,

@@ -771,7 +771,7 @@ def serialize_referenced_transcript(
     be confused with the model's own ``assistant`` role. Returns ``""`` when
     there is no content to serialize.
     """
-    lang = "zh" if str(language or "en").lower().startswith("zh") else "en"
+    lang = "zh" if str(language or "en").lower().startswith("zh") else "ko" if str(language or "en").lower().startswith("ko") else "en"
     agent = _imported_agent_label(meta, lang)
     if agent is not None:
         assistant_label = agent
