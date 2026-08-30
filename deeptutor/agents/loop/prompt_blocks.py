@@ -45,11 +45,11 @@ class LoopPromptAssembler:
     def __init__(self, *, prompts: dict[str, Any], language: str) -> None:
         self.prompts = prompts
         # Two different things used to share one attribute. ``language`` picks
-        # the prompt ASSETS, and only ``en``/``zh`` yaml exists — so anything
-        # else must fall back to English scaffolding. ``output_language`` is
-        # what the reader wants to READ, which can be any language the
+        # the prompt ASSETS, and only ``en``/``zh``/``ko`` yaml exists — so
+        # anything else must fall back to English scaffolding. ``output_language``
+        # is what the reader wants to READ, which can be any language the
         # directive can name.
-        self.language = "zh" if language.lower().startswith("zh") else "en"
+        self.language = "zh" if language.lower().startswith("zh") else "ko" if language.lower().startswith("ko") else "en"
         self.output_language = (language or "en").strip().lower() or "en"
 
     def system_prompt(
