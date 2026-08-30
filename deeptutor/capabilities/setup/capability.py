@@ -100,7 +100,7 @@ class SetupCapability:
 
 
 def _load_system_prompt(language: str) -> str:
-    lang = "zh" if str(language or "en").lower().startswith("zh") else "en"
+    lang = "zh" if str(language or "en").lower().startswith("zh") else "ko" if str(language or "en").lower().startswith("ko") else "en"
     prompt = resources.files(__package__).joinpath("prompts", lang, "system.md")
     return prompt.read_text(encoding="utf-8").strip()
 

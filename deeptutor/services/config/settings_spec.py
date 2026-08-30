@@ -130,6 +130,7 @@ _LANGUAGE_CHOICES: tuple[tuple[str, str, str], ...] = (
     ("zh", "简体中文", "Interface and replies in Simplified Chinese."),
     ("fr", "Français", "Interface and replies in French."),
     ("uk", "Українська", "Interface and replies in Ukrainian."),
+    ("ko", "한국어", "Interface and replies in Korean."),
 )
 
 _RESPONSE_LANGUAGE_CHOICES: tuple[tuple[str, str, str], ...] = (

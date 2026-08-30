@@ -372,10 +372,12 @@ def _pick_language(language: str | None) -> str:
     if not language:
         return "en"
     code = str(language).lower().strip()
-    if code in {"zh", "zh-cn", "zh-hans", "chinese", "cn"}:
+    if code in {"zh", "zh-cn", "zh-hans", "chinese", "cn"} or code.startswith("zh"):
         return "zh"
     if code in {"uk", "uk-ua", "ukrainian", "ua"}:
         return "uk"
+    if code in {"ko", "ko-kr", "korean", "kr"} or code.startswith("ko"):
+        return "ko"
     return "en"
 
 
