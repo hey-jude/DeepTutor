@@ -22,7 +22,7 @@ class NotebookAnalysisAgent:
     """Analyze selected notebook records before the main capability runs."""
 
     def __init__(self, language: str = "en") -> None:
-        self.language = "zh" if str(language or "en").lower().startswith("zh") else "en"
+        self.language = "zh" if str(language or "en").lower().startswith("zh") else "ko" if str(language or "en").lower().startswith("ko") else "en"
         self.llm_config = get_llm_config()
         self.model = getattr(self.llm_config, "model", None)
         self.api_key = getattr(self.llm_config, "api_key", None)

@@ -33,7 +33,7 @@ class PartnerAuthoringCapability:
         trigger = partner_authoring_trigger(context)
         if trigger is None:
             return None
-        lang = "zh" if str(language or "").lower().startswith("zh") else "en"
+        lang = "zh" if str(language or "").lower().startswith("zh") else "ko" if str(language or "").lower().startswith("ko") else "en"
         filename = "system.md" if trigger == "explicit" else "heuristic.md"
         prompt = resources.files(__package__).joinpath("prompts", lang, filename)
         return PromptBlock(self.name, prompt.read_text(encoding="utf-8").strip())

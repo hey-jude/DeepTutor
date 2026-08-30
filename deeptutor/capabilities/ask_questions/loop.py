@@ -45,8 +45,11 @@ class AskQuestionsLoopCapability:
 
 
 def _load_system_prompt(language: str) -> str:
-    lang = "zh" if language.lower().startswith("zh") else "en"
-    prompt = resources.files(__package__).joinpath("prompts", lang, "system.md")
+    lang = "zh" if language.lower().startswith("zh") else "ko" if language.lower().startswith("ko") else "en"
+    prompt_root = resources.files(__package__ or "deeptutor.capabilities.ask_questions").joinpath("prompts")
+    prompt = prompt_root.joinpath(lang, "system.md")
+    if not prompt.is_file():
+        prompt = prompt_root.joinpath("en", "system.md")
     return prompt.read_text(encoding="utf-8").strip()
 
 

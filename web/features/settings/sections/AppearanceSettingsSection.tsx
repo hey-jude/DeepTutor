@@ -70,6 +70,66 @@ export default function AppearanceSettingsPage() {
       />
 
       <SettingSection
+        title={t("Language")}
+        description={t("Choose the interface language.")}
+      >
+        <SettingRow
+          title={t("Interface language")}
+          description={t(
+            "Controls navigation, settings, and status text only.",
+          )}
+          control={
+            <div className="flex gap-0.5 rounded-lg bg-[var(--muted)] p-0.5">
+              {(["en", "zh", "ko"] as const).map((v) => (
+                <button
+                  key={v}
+                  onClick={() => updateLanguage(v)}
+                  className={`rounded-md px-2.5 py-1 text-[12px] transition-all ${
+                    language === v
+                      ? "bg-[var(--card)] font-medium text-[var(--foreground)] shadow-sm"
+                      : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+                  }`}
+                >
+                  {v === "en"
+                    ? t("language.english")
+                    : v === "zh"
+                      ? t("language.chinese")
+                      : t("language.korean")}
+                </button>
+              ))}
+            </div>
+          }
+        />
+        <SettingRow
+          title={t("Model output language")}
+          description={t(
+            "Sets the default language for chat and capability responses.",
+          )}
+          control={
+            <div className="flex gap-0.5 rounded-lg bg-[var(--muted)] p-0.5">
+              {(["en", "zh", "ko"] as const).map((value) => (
+                <button
+                  key={value}
+                  onClick={() => updateResponseLanguage(value)}
+                  className={`rounded-md px-2.5 py-1 text-[12px] transition-all ${
+                    responseLanguage === value
+                      ? "bg-[var(--card)] font-medium text-[var(--foreground)] shadow-sm"
+                      : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+                  }`}
+                >
+                  {value === "en"
+                    ? t("language.english")
+                    : value === "zh"
+                      ? t("language.chinese")
+                      : t("language.korean")}
+                </button>
+              ))}
+            </div>
+          }
+        />
+      </SettingSection>
+
+      <SettingSection
         title={t("Theme")}
         description={t(
           "Pick the colour palette and interface style. Each tile previews the theme it applies.",

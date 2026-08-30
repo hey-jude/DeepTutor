@@ -47,7 +47,7 @@ class PartnerGroupCapability:
         group = context.metadata.get("partner_group")
         if not isinstance(group, dict):
             return None
-        lang = "zh" if str(language or "").lower().startswith("zh") else "en"
+        lang = "zh" if str(language or "").lower().startswith("zh") else "ko" if str(language or "").lower().startswith("ko") else "en"
         prompt_root = resources.files(__package__).joinpath("prompts", lang)
         members = group.get("members") or []
         roster = "\n".join(

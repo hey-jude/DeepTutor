@@ -20,7 +20,7 @@ from deeptutor.services.singleflight_cache import AsyncSingleFlightTTLCache
 
 logger = logging.getLogger(__name__)
 
-_MAX_HINT_CHARS = {"zh": 44, "en": 110}
+_MAX_HINT_CHARS = {"zh": 44, "ko": 44, "en": 110}
 _LLM_TIMEOUT = 12.0
 _HISTORY_TURNS = 4
 _MAX_MESSAGE_CHARS = 700
@@ -232,16 +232,38 @@ _SYSTEM_ZH = """你要写出学习者在阅读时此刻会问导师的**一个�
 差：“这两个定义为什么不同？”（不是第一人称）"""
 
 
-def _render(material: _Material, zh: bool) -> str:
+_SYSTEM_KO = """읽고 있는 학습자가 지금 튜터에게 물어볼 **질문 하나**를 작성하세요.
+
+규칙:
+- 질문만 출력하세요. 답변, 요약, 설명, 힌트, 제안은 쓰지 마세요.
+- 학습자가 직접 입력할 법한 1인칭으로 작성하세요.
+- 튜터가 직전 답변에서 이미 설명한 내용은 반복하지 마세요.
+- 물음표 하나로 끝내고 40자 이내로 작성하세요.
+- 선택된 문장이 있으면 그것을 가장 중요한 근거로 삼고, 없으면 현재 주변 텍스트와 자료에 근거하세요.
+- 구체적인 이유, 차이, 의미 또는 경계 사례를 우선하고 막연한 설명 요청은 피하세요."""
+
+
+def _language(language: str) -> str:
+    lang = str(language or "en").lower()
+    return "zh" if lang.startswith("zh") else "ko" if lang.startswith("ko") else "en"
+
+
+def _render(material: _Material, language: str) -> str:
+    zh = language == "zh"
+    ko = language == "ko"
     lines = [
         f"# 当前材料\n标题：{material.title}\n呈现方式：{material.render_mode}"
         if zh
+        else f"# 현재 자료\n제목: {material.title}\n표시 방식: {material.render_mode}"
+        if ko
         else f"# Active material\nTitle: {material.title}\nRender mode: {material.render_mode}"
     ]
     if material.selection:
         lines.append(
             f"# 学习者刚选中的原文（最强信号）\n{material.selection}"
             if zh
+            else f"# 학습자가 방금 선택한 원문(가장 중요한 근거)\n{material.selection}"
+            if ko
             else f"# Learner's selected quote (strongest signal)\n{material.selection}"
         )
     if material.unit_text:
@@ -249,25 +271,29 @@ def _render(material: _Material, zh: bool) -> str:
         lines.append(
             f"# 当前位置附近的文字（位置 {locator}）\n{material.unit_text}"
             if zh
+            else f"# 현재 위치 주변 텍스트 (위치 {locator})\n{material.unit_text}"
+            if ko
             else f"# Text near the current location ({locator})\n{material.unit_text}"
         )
 
     if material.transcript:
-        speakers = {"user": "学习者" if zh else "Learner", "assistant": "导师" if zh else "Tutor"}
+        speakers = {"user": "学习者" if zh else "학습자" if ko else "Learner", "assistant": "导师" if zh else "튜터" if ko else "Tutor"}
         conversation = "\n".join(
             f"[{speakers.get(role, role)}] {content}" for role, content in material.transcript
         )
         lines.append(
-            ("# 最近四轮对话\n" if zh else "# Last four conversation turns\n") + conversation
+            ("# 最近四轮对话\n" if zh else "# 최근 네 번의 대화\n" if ko else "# Last four conversation turns\n") + conversation
         )
     else:
         lines.append(
             "# 最近四轮对话\n（尚未开始对话。）"
             if zh
+            else "# 최근 네 번의 대화\n(아직 대화를 시작하지 않았습니다.)"
+            if ko
             else "# Last four conversation turns\n(No conversation yet.)"
         )
 
-    lines.append("只写出那一个问题。" if zh else "Write only that one question.")
+    lines.append("只写出那一个问题。" if zh else "질문 하나만 작성하세요." if ko else "Write only that one question.")
     return "\n\n".join(lines)
 
 
@@ -385,8 +411,9 @@ def _sanitize(raw: str, language: str, last_answer: str = "") -> str:
     if len(re.findall(r"[.!。！](?:\s|$)", text[:-1])) > 1:
         return ""
 
-    zh = _is_zh(language)
-    limit = _MAX_HINT_CHARS["zh" if zh else "en"]
+    language = _language(language)
+    zh = language == "zh"
+    limit = _MAX_HINT_CHARS["zh" if zh else "ko" if language == "ko" else "en"]
     if len(text) > limit:
         return ""
     # Deliberately NOT requiring a first-person pronoun. "In the learner's own
@@ -394,6 +421,7 @@ def _sanitize(raw: str, language: str, last_answer: str = "") -> str:
     # exactly what a student asks, and demanding a 我 in it would force the
     # stilted "我想问……" instead. Requiring the pronoun rejected essentially
     # every real generation, which made this whole feature silently dead.
+    # ko uses EN regex intentionally.
     if (_META_ZH if zh else _META_EN).search(text):
         return ""
     if (_ANSWER_ZH if zh else _ANSWER_EN).search(text):
@@ -417,12 +445,13 @@ async def _call_llm(material: _Material, language: str) -> str:
     from deeptutor.services.llm import complete
     from deeptutor.services.model_selection.tasks import TaskKind, task_llm_scope
 
+    language = _language(language)
     zh = _is_zh(language)
     with task_llm_scope(TaskKind.READING_ASK_HINT):
         return await asyncio.wait_for(
             complete(
-                prompt=_render(material, zh),
-                system_prompt=_SYSTEM_ZH if zh else _SYSTEM_EN,
+                prompt=_render(material, language),
+                system_prompt=_SYSTEM_ZH if zh else _SYSTEM_KO if language == "ko" else _SYSTEM_EN,
                 temperature=0.7,
                 max_tokens=120,
                 max_retries=0,
@@ -500,4 +529,153 @@ async def get_ask_hint(
     return value.to_dict()
 
 
-__all__ = ["AskHint", "get_ask_hint"]
+# -- Opening suggestions ------------------------------------------------------
+#
+# What the panel offers before the first message. The three lines it used to
+# show ("Explain the key argument", "Challenge this evidence", "Turn this into
+# study notes") are true of every document ever written, which is exactly why
+# a learner stops reading them. These are written against *this* material, and
+# fall back to those generic three when the model has nothing — an empty
+# conversation must never be an empty panel.
+
+_MAX_OPENERS = 3
+# Wider than a hint's: `_MAX_HINT_CHARS` sizes a single-line placeholder, and
+# an opener is a wrapped button that comfortably shows two lines. Reusing the
+# placeholder bound silently dropped every opener that named two concepts.
+_MAX_OPENER_CHARS = {"zh": 60, "en": 150}
+# Two specific lines beat three generic ones; one on its own reads like the
+# other two failed, so that is where the floor sits.
+_MIN_OPENERS = 2
+_OPENER_TTL_SECONDS = 6 * 60 * 60
+
+_OPENER_SYSTEM_EN = (
+    "You suggest what a learner could ask about the material they just opened.\n"
+    "Write exactly three lines. Each line is one thing the learner says to their "
+    "tutor, in their own voice — a question or a request, never an answer, never "
+    "a summary, never advice addressed to them.\n"
+    "Each line names something specific to THIS material: a claim it makes, a "
+    "section, a term it introduces.\n"
+    "This is the FIRST thing said in the conversation. The tutor has not spoken "
+    "yet, so never write 'you mentioned', 'you said', 'the example you gave', or "
+    "anything else that refers back to it. Refer to the material, not to a tutor.\n"
+    "Do not number the lines or add any other text."
+)
+_OPENER_SYSTEM_ZH = (
+    "你为刚打开一份资料的学习者提出三条他可以对导师说的话。\n"
+    "只写三行。每一行都是学习者自己会说的一句话——一个问题或一个请求，"
+    "绝不是答案，绝不是摘要，也不是对他的建议。\n"
+    "每一行都要指向这份资料里具体的东西：它提出的某个主张、某一节、"
+    "它引入的某个术语。\n"
+    "这是整段对话的第一句话，导师还没有说过任何话。因此绝不能写"
+    "「你提到」「你说的」「你举的例子」这类回指导师的说法——要指向资料本身。\n"
+    "不要编号，不要写其它任何内容。"
+)
+
+_BACKREF_ZH = re.compile(
+    r"你(?:刚才|之前|上面)?(?:提到|提过|提出|说过|说的|讲的|讲过|举的|举过|"
+    r"引入|introduced|演示|展示|给的|给出|用的)|如你所说|按你说的"
+)
+_BACKREF_EN = re.compile(
+    r"\byou (?:mentioned|said|noted|described|gave|showed|introduced|demonstrated|"
+    r"used|brought up)\b|\bas you (?:said|put it)\b",
+    re.IGNORECASE,
+)
+
+_openers_cache: dict[str, tuple[float, list[str]]] = {}
+
+
+def _render_openers(material: _Material, zh: bool) -> str:
+    lines = [
+        ("资料标题：" if zh else "Material: ") + material.title,
+        ("资料类型：" if zh else "Format: ") + (material.render_mode or "text"),
+    ]
+    if material.unit_text:
+        lines.append(("正文片段：" if zh else "Excerpt: ") + material.unit_text)
+    lines.append("请写三行。" if zh else "Write the three lines.")
+    return "\n\n".join(lines)
+
+
+def _sanitize_opener(raw_line: str, zh: bool) -> str:
+    """One learner-voiced opener, or "" — looser than a hint: openers may be requests."""
+    text = " ".join(str(raw_line or "").split())
+    text = re.sub(r"^[-•*\d.、)\s]+", "", text).strip()
+    if len(text) >= 2 and (text[0], text[-1]) in {
+        ('"', '"'),
+        ("“", "”"),
+        ("「", "」"),
+    }:
+        text = text[1:-1].strip()
+    if not text:
+        return ""
+    if len(text) > _MAX_OPENER_CHARS["zh" if zh else "en"]:
+        return ""
+    if (_META_ZH if zh else _META_EN).search(text):
+        return ""
+    if (_ANSWER_ZH if zh else _ANSWER_EN).search(text):
+        return ""
+    # Nothing has been said yet, so a line that refers back to the tutor is
+    # incoherent as an opener however well written it is.
+    if (_BACKREF_ZH if zh else _BACKREF_EN).search(text):
+        return ""
+    return text
+
+
+async def get_openers(workspace_id: str, locator: int | None = None) -> dict[str, Any]:
+    """Three things the learner could open this material with, or an empty list.
+
+    Keyed on the material and the page in view, not on a conversation: these
+    are only ever shown to an empty one.
+    """
+    try:
+        material = await _collect(workspace_id, "", locator, "")
+    except Exception:
+        logger.debug("reading openers: material unavailable", exc_info=True)
+        return {"suggestions": []}
+    if not material:
+        return {"suggestions": []}
+
+    key = f"{workspace_id}|{material.material_id}|{_locator_bucket(material.locator)}"
+    cached = _openers_cache.get(key)
+    if cached and time.time() - cached[0] < _OPENER_TTL_SECONDS:
+        return {"suggestions": cached[1], "material_id": material.material_id}
+
+    language = _response_language()
+    language = _language(language)
+    zh = language == "zh"
+    try:
+        from deeptutor.services.llm import complete
+        from deeptutor.services.model_selection.tasks import TaskKind, task_llm_scope
+
+        with task_llm_scope(TaskKind.READING_OPENERS):
+            raw = await asyncio.wait_for(
+                complete(
+                    prompt=_render_openers(material, zh),
+                    system_prompt=_OPENER_SYSTEM_ZH if zh else _OPENER_SYSTEM_EN,
+                    temperature=0.8,
+                    max_tokens=220,
+                    max_retries=0,
+                ),
+                timeout=_LLM_TIMEOUT,
+            )
+    except Exception:
+        logger.debug("reading openers: generation failed", exc_info=True)
+        return {"suggestions": []}
+
+    suggestions: list[str] = []
+    for line in str(raw or "").splitlines():
+        cleaned = _sanitize_opener(line, zh)
+        if cleaned and cleaned not in suggestions:
+            suggestions.append(cleaned)
+        if len(suggestions) == _MAX_OPENERS:
+            break
+    if len(suggestions) < _MIN_OPENERS:
+        logger.debug("reading openers: only %d usable lines", len(suggestions))
+        return {"suggestions": []}
+
+    if len(_openers_cache) >= _CACHE_LIMIT:
+        _openers_cache.clear()
+    _openers_cache[key] = (time.time(), suggestions)
+    return {"suggestions": suggestions, "material_id": material.material_id}
+
+
+__all__ = ["AskHint", "get_ask_hint", "get_openers"]
