@@ -76,6 +76,7 @@ const CAPABILITY_LABELS: Record<string, { zh: string; en: string }> = {
 export default function ToolsSettingsPage() {
   const { t } = useTranslation();
   const { language } = useSettings();
+  const toolLang: "en" | "zh" = language === "zh" ? "zh" : "en";
   const [tools, setTools] = useState<BuiltinTool[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -213,8 +214,8 @@ export default function ToolsSettingsPage() {
       .map((section) => ({
         ...section,
         tools: section.tools.filter((tool) => {
-          const hints = tool.hints[language];
-          const alternateHints = tool.hints[language === "zh" ? "en" : "zh"];
+          const hints = tool.hints[toolLang] ?? tool.hints.en;
+          const alternateHints = tool.hints[toolLang === "zh" ? "en" : "zh"];
           const searchableText = [
             tool.name,
             tool.description,
@@ -345,14 +346,14 @@ export default function ToolsSettingsPage() {
                 <div className="border-t border-[var(--border)]/60">
                   {list.map((tool, idx) => {
                     const isOpen = expanded.has(tool.name);
-                    const hints = tool.hints[language];
+                    const hints = tool.hints[toolLang] ?? tool.hints.en;
                     const isPending = pending.has(tool.name);
                     const isComingSoon = !!tool.coming_soon;
                     const isAvailable = tool.available !== false;
                     const availability = !isAvailable
                       ? toolAvailabilityCopy(
                           tool.unavailable_reason,
-                          language === "zh" ? "zh" : "en",
+                          toolLang,
                         )
                       : null;
                     const isEnabled = toolEffectiveEnabled(

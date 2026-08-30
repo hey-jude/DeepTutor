@@ -2,7 +2,7 @@
 
 import { browserStorage } from "@/shared/storage";
 
-export type AppLanguage = "en" | "zh";
+export type AppLanguage = "en" | "zh" | "ko";
 
 export const ACTIVE_SESSION_STORAGE_KEY = "deeptutor.activeSessionId.tab";
 export const LANGUAGE_STORAGE_KEY = "deeptutor-language";
@@ -70,16 +70,21 @@ export const CODE_BLOCK_SETTINGS_EVENT = "deeptutor:code-block-settings";
 export function normalizeLanguage(
   value: string | null | undefined,
 ): AppLanguage {
-  return value === "zh" ? "zh" : "en";
+  const normalized = value?.toLowerCase() ?? "";
+  if (normalized === "zh") return "zh";
+  if (normalized.startsWith("ko")) return "ko";
+  return "en";
 }
 
 export function resolveResponseLanguage(
   value: string | null | undefined,
   legacyLanguage: string | null | undefined = "en",
 ): AppLanguage {
-  return value === "zh" || value === "en"
-    ? value
-    : normalizeLanguage(legacyLanguage);
+  const normalized = value?.toLowerCase() ?? "";
+  if (normalized === "zh") return "zh";
+  if (normalized.startsWith("ko")) return "ko";
+  if (normalized === "en") return "en";
+  return normalizeLanguage(legacyLanguage);
 }
 
 export function readStoredLanguage(): AppLanguage {
