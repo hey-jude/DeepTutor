@@ -83,9 +83,16 @@ class ImaCapability:
         return ""
 
 
+def _is_ko(language: str) -> bool:
+    return str(language or "en").lower().startswith("ko")
+
+
 def _load_system_prompt(language: str) -> str:
-    lang = "zh" if _is_zh(language) else "en"
-    prompt = resources.files(__package__).joinpath("prompts", lang, "system.md")
+    lang = "zh" if _is_zh(language) else "ko" if _is_ko(language) else "en"
+    prompt_root = resources.files(__package__ or "deeptutor.capabilities.ima").joinpath("prompts")
+    prompt = prompt_root.joinpath(lang, "system.md")
+    if not prompt.is_file():
+        prompt = prompt_root.joinpath("en", "system.md")
     return prompt.read_text(encoding="utf-8").strip()
 
 

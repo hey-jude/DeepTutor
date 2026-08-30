@@ -73,7 +73,7 @@ def slot_focus(language: str, slot: str) -> tuple[str, list[str]]:
 
 
 def _lang_code(language: str) -> str:
-    return "zh" if (language or "").lower().startswith("zh") else "en"
+    return "zh" if (language or "").lower().startswith("zh") else "ko" if (language or "").lower().startswith("ko") else "en"
 
 
 async def emit(on_event: OnEvent | None, event: dict[str, Any]) -> None:

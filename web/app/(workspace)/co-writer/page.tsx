@@ -12,7 +12,7 @@ import {
   type CoWriterDocumentSummary,
 } from "@/lib/co-writer-api";
 import { notifyCoWriterChanged } from "@/lib/co-writer-events";
-import { CO_WRITER_SAMPLE_TEMPLATE } from "./sampleTemplate";
+import { getCoWriterSampleTemplate } from "./sampleTemplate";
 import Tooltip from "@/shared/ui/Tooltip";
 
 function relativeTime(seconds: number): string {
@@ -33,7 +33,8 @@ function relativeTime(seconds: number): string {
 
 export default function CoWriterHomePage() {
   const router = useRouter();
-  const { t } = useTranslation();
+  const { i18n, t } = useTranslation();
+  const template = getCoWriterSampleTemplate(i18n.language);
   const [documents, setDocuments] = useState<CoWriterDocumentSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -67,7 +68,7 @@ export default function CoWriterHomePage() {
       setError("");
       try {
         const document = await createCoWriterDocument({
-          content: withTemplate ? CO_WRITER_SAMPLE_TEMPLATE : "",
+          content: withTemplate ? template : "",
         });
         notifyCoWriterChanged();
         router.push(`/co-writer/${document.id}`);
