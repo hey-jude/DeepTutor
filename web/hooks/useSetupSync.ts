@@ -64,7 +64,7 @@ export function useSetupSync(
           theme?: unknown;
         };
         if (cancelled) return;
-        if (payload.language === "zh" || payload.language === "en") {
+        if (payload.language === "zh" || payload.language === "en" || payload.language === "ko") {
           writeStoredLanguage(payload.language);
           writeStoredResponseLanguage(
             resolveResponseLanguage(

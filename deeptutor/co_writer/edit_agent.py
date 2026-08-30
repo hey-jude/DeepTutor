@@ -379,7 +379,7 @@ class EditAgent(BaseAgent):
             "en": {"rag": "knowledge base", "web": "web search"},
             "zh": {"rag": "知识库", "web": "网页搜索"},
         }
-        lang = "zh" if str(self.language).lower().startswith("zh") else "en"
+        lang = "zh" if str(self.language).lower().startswith("zh") else "ko" if str(self.language).lower().startswith("ko") else "en"
         if source in labels[lang]:
             return labels[lang][source]
         return "reference" if lang == "en" else "参考资料"
