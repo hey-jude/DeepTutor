@@ -396,7 +396,7 @@ def resolve_language(default: str = "en") -> str:
 
 
 def labels_for(language: str | None) -> dict[str, str]:
-    return LABELS[_pick_language(language)]
+    return LABELS.get(_pick_language(language), LABELS["en"])
 
 
 def render_banner(language: str | None, *, mode_key: str | None = None) -> Panel:
@@ -412,7 +412,7 @@ def render_banner(language: str | None, *, mode_key: str | None = None) -> Panel
     """
 
     lang = _pick_language(language)
-    strings = LABELS[lang]
+    strings = LABELS.get(lang, LABELS["en"])
 
     logo = Text(_ASCII_LOGO, style="bold bright_cyan")
     tagline_line = f"{strings['tagline']}  ·  v{__version__}"
