@@ -170,7 +170,11 @@ const nextConfig = {
   // follows whatever network this machine is on. Dev-only: `allowedDevOrigins`
   // has no effect on `next build`/`next start`, and anyone who can reach the
   // dev server on these addresses is already inside the LAN.
-  allowedDevOrigins: ["127.0.0.1", ...localNetworkHosts()],
+  allowedDevOrigins: [
+    "127.0.0.1",
+    ...localNetworkHosts(),
+    "*.ts.net",
+  ],
 
   // Turbopack configuration (used when running `npm run dev:turbo`)
   turbopack: {
