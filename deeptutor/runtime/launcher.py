@@ -32,8 +32,8 @@ from deeptutor.runtime.memory_probe import SUPERVISOR_PID_ENV
 from deeptutor.runtime.process import is_process_alive
 from deeptutor.services.app_update import LAUNCHER_PID_ENV
 
-BACKEND_READY_TIMEOUT = 60
-FRONTEND_READY_TIMEOUT = 120
+BACKEND_READY_TIMEOUT = int(os.environ.get("DEEPTUTOR_BACKEND_TIMEOUT", 60))
+FRONTEND_READY_TIMEOUT = int(os.environ.get("DEEPTUTOR_FRONTEND_TIMEOUT", 120))
 FRONTEND_REUSE_PROBE_TIMEOUT = 2
 KILL_SIGNAL = getattr(signal, "SIGKILL", signal.SIGTERM)
 WEB_CACHE_DIR = Path("data") / "user" / "runtime" / "web"
