@@ -270,7 +270,10 @@ export function ReadingCompanion({
       cancelled = true;
       controller.abort();
     };
-  }, [activeLocator, hasMessages, workspaceId]);
+    // state.language: openers are generated per response language on the
+    // backend — without this, switching Model output language keeps showing
+    // the previous language's questions until the page changes.
+  }, [activeLocator, hasMessages, state.language, workspaceId]);
 
   /* ── Session-level actions, the same three /chat puts in its header ── */
   const { modalMessages: chatSaveMessages, payload: chatSavePayload } =
