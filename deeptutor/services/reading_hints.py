@@ -542,7 +542,7 @@ _MAX_OPENERS = 3
 # Wider than a hint's: `_MAX_HINT_CHARS` sizes a single-line placeholder, and
 # an opener is a wrapped button that comfortably shows two lines. Reusing the
 # placeholder bound silently dropped every opener that named two concepts.
-_MAX_OPENER_CHARS = {"zh": 60, "en": 150}
+_MAX_OPENER_CHARS = {"zh": 60, "ko": 60, "en": 150}
 # Two specific lines beat three generic ones; one on its own reads like the
 # other two failed, so that is where the floor sits.
 _MIN_OPENERS = 2
@@ -571,6 +571,23 @@ _OPENER_SYSTEM_ZH = (
     "不要编号，不要写其它任何内容。"
 )
 
+_OPENER_SYSTEM_KO = (
+    "방금 자료를 연 학습자가 튜터에게 할 수 있는 말 세 가지를 제안한다.\n"
+    "정확히 세 줄로 작성하라. 각 줄은 학습자 본인의 목소리로 말하는 한 가지——"
+    "질문 또는 요청이며, 답·요약·상대에게 하는 조언이 아니어야 한다.\n"
+    "각 줄은 반드시 이 자료에만 해당하는 구체적인 것을 언급해야 한다: 자료가 "
+    "내세우는 주장, 특정 장·절, 자료가 도입하는 용어.\n"
+    "이것은 대화의 첫마디이며 튜터는 아직 아무 말도 하지 않았다. 따라서 '네가 "
+    "언급한', '네가 말한', '네가 든 예시'처럼 튜터의 발언을 되돌아보는 표현은 "
+    "절대 쓰지 마라——자료 자체를 가리켜라.\n"
+    "번호를 매기거나 다른 내용을 덧붙이지 마라."
+)
+
+_BACKREF_KO = re.compile(
+    r"네가 (?:언급|말|설명|보여|소개|사용|말한)|당신이 (?:언급|말|설명)|"
+    r"말씀하신|언급하신|앞서 말한|말한 예시|네 말대로"
+)
+
 _BACKREF_ZH = re.compile(
     r"你(?:刚才|之前|上面)?(?:提到|提过|提出|说过|说的|讲的|讲过|举的|举过|"
     r"引入|introduced|演示|展示|给的|给出|用的)|如你所说|按你说的"
@@ -584,19 +601,27 @@ _BACKREF_EN = re.compile(
 _openers_cache: dict[str, tuple[float, list[str]]] = {}
 
 
-def _render_openers(material: _Material, zh: bool) -> str:
+def _render_openers(material: _Material, language: str | bool = "en") -> str:
+    # bool overload kept for existing callers/tests: True == "zh".
+    language = "zh" if language is True else "en" if language is False else _language(language)
+    zh = language == "zh"
+    ko = language == "ko"
     lines = [
-        ("资料标题：" if zh else "Material: ") + material.title,
-        ("资料类型：" if zh else "Format: ") + (material.render_mode or "text"),
+        ("资料标题：" if zh else "자료 제목: " if ko else "Material: ") + material.title,
+        ("资料类型：" if zh else "형식: " if ko else "Format: ") + (material.render_mode or "text"),
     ]
     if material.unit_text:
-        lines.append(("正文片段：" if zh else "Excerpt: ") + material.unit_text)
-    lines.append("请写三行。" if zh else "Write the three lines.")
+        lines.append(("正文片段：" if zh else "본문 발췌: " if ko else "Excerpt: ") + material.unit_text)
+    lines.append("请写三行。" if zh else "세 줄로 작성하세요." if ko else "Write the three lines.")
     return "\n\n".join(lines)
 
 
-def _sanitize_opener(raw_line: str, zh: bool) -> str:
+def _sanitize_opener(raw_line: str, language: str | bool = "en") -> str:
     """One learner-voiced opener, or "" — looser than a hint: openers may be requests."""
+    # bool overload kept for existing callers/tests: True == "zh".
+    language = "zh" if language is True else "en" if language is False else _language(language)
+    zh = language == "zh"
+    ko = language == "ko"
     text = " ".join(str(raw_line or "").split())
     text = re.sub(r"^[-•*\d.、)\s]+", "", text).strip()
     if len(text) >= 2 and (text[0], text[-1]) in {
@@ -607,15 +632,16 @@ def _sanitize_opener(raw_line: str, zh: bool) -> str:
         text = text[1:-1].strip()
     if not text:
         return ""
-    if len(text) > _MAX_OPENER_CHARS["zh" if zh else "en"]:
+    if len(text) > _MAX_OPENER_CHARS["ko" if ko else "zh" if zh else "en"]:
         return ""
+    # ko uses the EN meta/answer filters intentionally (same as _sanitize).
     if (_META_ZH if zh else _META_EN).search(text):
         return ""
     if (_ANSWER_ZH if zh else _ANSWER_EN).search(text):
         return ""
     # Nothing has been said yet, so a line that refers back to the tutor is
     # incoherent as an opener however well written it is.
-    if (_BACKREF_ZH if zh else _BACKREF_EN).search(text):
+    if (_BACKREF_ZH if zh else _BACKREF_KO if ko else _BACKREF_EN).search(text):
         return ""
     return text
 
@@ -634,14 +660,13 @@ async def get_openers(workspace_id: str, locator: int | None = None) -> dict[str
     if not material:
         return {"suggestions": []}
 
-    key = f"{workspace_id}|{material.material_id}|{_locator_bucket(material.locator)}"
+    language = _language(_response_language())
+    zh = language == "zh"
+    key = f"{workspace_id}|{material.material_id}|{_locator_bucket(material.locator)}|{language}"
     cached = _openers_cache.get(key)
     if cached and time.time() - cached[0] < _OPENER_TTL_SECONDS:
         return {"suggestions": cached[1], "material_id": material.material_id}
 
-    language = _response_language()
-    language = _language(language)
-    zh = language == "zh"
     try:
         from deeptutor.services.llm import complete
         from deeptutor.services.model_selection.tasks import task_llm_scope
@@ -649,8 +674,12 @@ async def get_openers(workspace_id: str, locator: int | None = None) -> dict[str
         with task_llm_scope():
             raw = await asyncio.wait_for(
                 complete(
-                    prompt=_render_openers(material, zh),
-                    system_prompt=_OPENER_SYSTEM_ZH if zh else _OPENER_SYSTEM_EN,
+                    prompt=_render_openers(material, language),
+                    system_prompt=_OPENER_SYSTEM_ZH
+                    if zh
+                    else _OPENER_SYSTEM_KO
+                    if language == "ko"
+                    else _OPENER_SYSTEM_EN,
                     temperature=0.8,
                     max_tokens=220,
                     max_retries=0,
@@ -663,7 +692,7 @@ async def get_openers(workspace_id: str, locator: int | None = None) -> dict[str
 
     suggestions: list[str] = []
     for line in str(raw or "").splitlines():
-        cleaned = _sanitize_opener(line, zh)
+        cleaned = _sanitize_opener(line, language)
         if cleaned and cleaned not in suggestions:
             suggestions.append(cleaned)
         if len(suggestions) == _MAX_OPENERS:

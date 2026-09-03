@@ -70,19 +70,30 @@ def _load_prompts(language: str) -> dict[str, Any]:
     cached = _PROMPT_CACHE.get(lang)
     if cached is not None:
         return cached
-    try:
-        text = (
-            resources.files(__package__)
-            .joinpath("prompts", lang, "reading.yaml")
-            .read_text(encoding="utf-8")
-        )
-        data = yaml.safe_load(text)
-    except Exception:
-        logger.warning("failed to load reading prompts (%s)", lang, exc_info=True)
-        data = None
-    result = data if isinstance(data, dict) else {}
-    _PROMPT_CACHE[lang] = result
-    return result
+    # Prompt files only ship en/zh (see prompts/). A resolved "ko" has no
+    # file yet, so fall back to en instead of running with empty prompts.
+    # The ko output directive (append_language_directive) still applies, so
+    # the turn answers in Korean on top of the English playbook.
+    candidates = (lang, "en") if lang != "en" else (lang,)
+    for candidate in candidates:
+        try:
+            text = (
+                resources.files(__package__)
+                .joinpath("prompts", candidate, "reading.yaml")
+                .read_text(encoding="utf-8")
+            )
+            data = yaml.safe_load(text)
+        except FileNotFoundError:
+            continue
+        except Exception:
+            logger.warning("failed to load reading prompts (%s)", candidate, exc_info=True)
+            data = None
+        if isinstance(data, dict):
+            _PROMPT_CACHE[lang] = data
+            return data
+    logger.warning("failed to load reading prompts (%s), using empty prompts", lang)
+    _PROMPT_CACHE[lang] = {}
+    return _PROMPT_CACHE[lang]
 
 
 def resolve_material_id(context: UnifiedContext) -> str:
