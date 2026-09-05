@@ -329,6 +329,16 @@
   @apply font-serif text-[16px];
 }
 
+/* LLM chat / streaming surfaces (chat, partner chat, quiz follow-up,
+   mastery study, book chat, reading companion) all carry
+   data-chat-scroll-root. Conversational text renders sans; the serif
+   above stays intentional for document/reading surfaces. */
+[data-chat-scroll-root="true"] .prose {
+  font-family:
+    var(--font-sans), "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
+    "Noto Sans SC", system-ui, sans-serif;
+}
+
 .prose pre {
   @apply rounded-lg p-4 overflow-x-auto my-4;
   background: #292524;
