@@ -43,6 +43,10 @@ module.exports = {
         ],
         serif: [
           'var(--font-serif)',
+          'Noto Serif KR',
+          'Noto Serif CJK KR',
+          'AppleMyungjo',
+          'Batang',
           'Songti SC',
           'STSong',
           'Noto Serif SC',
