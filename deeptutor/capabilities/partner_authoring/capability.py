@@ -30,7 +30,11 @@ class PartnerAuthoringCapability:
     ) -> PromptBlock | None:
         _ = (context, prompts)
         lang = "zh" if str(language or "").lower().startswith("zh") else "ko" if str(language or "").lower().startswith("ko") else "en"
-        prompt = resources.files(__package__).joinpath("prompts", lang, "system.md")
+        prompt_root = resources.files(__package__ or "deeptutor.capabilities.partner_authoring").joinpath("prompts")
+        prompt = prompt_root.joinpath(lang, "system.md")
+        if not prompt.is_file():
+            # Only en/zh ship (see prompts/); fall back to en instead of crashing.
+            prompt = prompt_root.joinpath("en", "system.md")
         return PromptBlock(self.name, prompt.read_text(encoding="utf-8").strip())
 
     def augment_kwargs(
