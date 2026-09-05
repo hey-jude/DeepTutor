@@ -46,6 +46,16 @@ export default function RootLayout({
     >
       <head>
         <ThemeScript />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin="anonymous"
+        />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500;600;700&display=swap"
+          rel="stylesheet"
+        />
       </head>
       <body
         className="font-sans bg-[var(--background)] text-[var(--foreground)]"
