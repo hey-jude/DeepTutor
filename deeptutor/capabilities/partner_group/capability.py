@@ -48,7 +48,11 @@ class PartnerGroupCapability:
         if not isinstance(group, dict):
             return None
         lang = "zh" if str(language or "").lower().startswith("zh") else "ko" if str(language or "").lower().startswith("ko") else "en"
-        prompt_root = resources.files(__package__).joinpath("prompts", lang)
+        prompts_root = resources.files(__package__ or "deeptutor.capabilities.partner_group").joinpath("prompts")
+        prompt_root = prompts_root.joinpath(lang)
+        if not prompt_root.joinpath("system.md").is_file():
+            # Only en/zh ship (see prompts/); fall back to en instead of crashing.
+            prompt_root = prompts_root.joinpath("en")
         members = group.get("members") or []
         roster = "\n".join(
             f"- {str(item.get('name') or item.get('partner_id') or '')} "

@@ -34,8 +34,12 @@ class PartnerAuthoringCapability:
         if trigger is None:
             return None
         lang = "zh" if str(language or "").lower().startswith("zh") else "ko" if str(language or "").lower().startswith("ko") else "en"
+        prompt_root = resources.files(__package__).joinpath("prompts")
         filename = "system.md" if trigger == "explicit" else "heuristic.md"
-        prompt = resources.files(__package__).joinpath("prompts", lang, filename)
+        prompt = prompt_root.joinpath(lang, filename)
+        if not prompt.is_file():
+            # Only en/zh ship (see prompts/); fall back to en instead of crashing.
+            prompt = prompt_root.joinpath("en", filename)
         return PromptBlock(self.name, prompt.read_text(encoding="utf-8").strip())
 
     def augment_kwargs(

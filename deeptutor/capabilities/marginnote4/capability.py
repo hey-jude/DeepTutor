@@ -73,7 +73,11 @@ class MarginNoteCapability(KnowledgeCapability):
 
 def _load_system_prompt(language: str) -> str:
     lang = "zh" if language.lower().startswith("zh") else "ko" if language.lower().startswith("ko") else "en"
-    prompt = resources.files(__package__).joinpath("prompts", lang, "system.md")
+    prompt_root = resources.files(__package__ or "deeptutor.capabilities.marginnote4").joinpath("prompts")
+    prompt = prompt_root.joinpath(lang, "system.md")
+    if not prompt.is_file():
+        # Only en/zh ship (see prompts/); fall back to en instead of crashing.
+        prompt = prompt_root.joinpath("en", "system.md")
     return prompt.read_text(encoding="utf-8").strip()
 
 
