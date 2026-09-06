@@ -56,6 +56,7 @@ from typing import Any
 
 from deeptutor.services.file_io import atomic_write_json
 from deeptutor.services.prompt.language import is_chinese as _is_zh
+from deeptutor.services.prompt.language import is_korean as _is_ko
 
 logger = logging.getLogger(__name__)
 
@@ -477,8 +478,7 @@ _SYSTEM_KO = """당신은 학습자가 다음에 탐색해 볼 만한 세 가지
 
 
 def _language(language: str) -> str:
-    lang = str(language or "en").lower()
-    return "zh" if lang.startswith("zh") else "ko" if lang.startswith("ko") else "en"
+    return "zh" if _is_zh(language) else "ko" if _is_ko(language) else "en"
 
 
 def _render_topics(topics: list[_Topic], language: str) -> str:
