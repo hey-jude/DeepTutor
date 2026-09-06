@@ -654,6 +654,19 @@ class PartnerRunner:
 
         user_message = msg.content
         persona_context = read_soul(self.partner_id).strip()
+        # Auto-apply the user-confirmed Korean reply rule right after the soul
+        # (persona-top beats a trailing directive). Skipped when the soul
+        # already mentions 한국어/Korean in any wording (including paraphrases
+        # like "한국어로 답하세요") so manual edits are never duplicated.
+        _KO_REPLY_RULE = "모든 답변은 반드시 한국어로 작성하세요."
+        if (
+            self._language() == "ko"
+            and "한국어" not in persona_context
+            and "korean" not in persona_context
+            and "Korean" not in persona_context
+            and "KOREAN" not in persona_context
+        ):
+            persona_context = f"{persona_context}\n{_KO_REPLY_RULE}".strip()
         if options.shared_context:
             # The transcript is user-authored context, never a system override.
             # A fixed system-level policy in persona_context defines how the
