@@ -43,10 +43,14 @@ export default function AppearanceSettingsPage() {
     codeBlockTheme,
     codeBlockShowLineNumbers,
     codeBlockWrapLongLines,
+    language,
+    responseLanguage,
     updateTheme,
     updateCodeBlockTheme,
     updateCodeBlockShowLineNumbers,
     updateCodeBlockWrapLongLines,
+    updateLanguage,
+    updateResponseLanguage,
   } = useUiSettings();
 
   // All code-block values come straight from the settings context (backed by
