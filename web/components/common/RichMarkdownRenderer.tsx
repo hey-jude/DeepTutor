@@ -710,7 +710,12 @@ export default function RichMarkdownRenderer({
   const rehypePlugins = useMemo(() => {
     const p: Array<any> = [];
     if (allowHtml && plugins.rehypeRaw) p.push(plugins.rehypeRaw as never);
-    if (enableMath && plugins.rehypeKatex) p.push(plugins.rehypeKatex as never);
+    // Korean (and other CJK) text inside $...$ is expected now that responses
+    // are forced to Korean. KaTeX defaults strict to "warn", which spams the
+    // console with unicodeTextInMathMode; "ignore" renders the run via font
+    // fallback instead.
+    if (enableMath && plugins.rehypeKatex)
+      p.push([plugins.rehypeKatex, { strict: "ignore" }] as never);
     return p;
   }, [allowHtml, enableMath, plugins.rehypeRaw, plugins.rehypeKatex]);
 
