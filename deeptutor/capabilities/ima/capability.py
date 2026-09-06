@@ -29,6 +29,7 @@ from deeptutor.capabilities.ima.tools import BINDINGS_KWARG, IMA_TOOL_NAMES
 from deeptutor.capabilities.protocol import PromptBlock
 from deeptutor.core.context import UnifiedContext
 from deeptutor.services.prompt.language import is_chinese as _is_zh
+from deeptutor.services.prompt.language import is_korean as _is_ko
 from deeptutor.services.prompt.lookup import prompt_text as _prompt_text
 
 
@@ -81,10 +82,6 @@ class ImaCapability:
     def pre_loop_seed(self, context: UnifiedContext) -> str:
         _ = context
         return ""
-
-
-def _is_ko(language: str) -> bool:
-    return str(language or "en").lower().startswith("ko")
 
 
 def _load_system_prompt(language: str) -> str:
