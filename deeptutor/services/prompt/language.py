@@ -36,6 +36,11 @@ def is_chinese(language: str | None) -> bool:
     return normalize_language(language).startswith("zh")
 
 
+def is_korean(language: str | None) -> bool:
+    """Whether reader-facing text for *language* should be written in Korean."""
+    return normalize_language(language).startswith("ko")
+
+
 def language_label(language: str | None) -> str:
     code = normalize_language(language)
     if code in _LANGUAGE_LABELS:
@@ -52,6 +57,11 @@ _OVERRIDE_EN = (
     "This is the default output language, not a restriction on the reader: if "
     "the user explicitly asks you to answer in another language, honour that "
     "request and keep to it for the rest of the conversation."
+)
+_OVERRIDE_KO = (
+    "위 내용은 기본 출력 언어이며 독자에 대한 제한이 아닙니다. "
+    "사용자가 명시적으로 다른 언어로 답변을 요청하면 그 요청을 존중하고 "
+    "대화의 나머지에서 해당 언어를 유지하세요."
 )
 
 
@@ -80,6 +90,16 @@ def language_directive(language: str | None, *, allow_user_override: bool = Fals
             f"等）即可，其余一律使用{label}。"
         )
         return f"{body} {_OVERRIDE_ZH}" if allow_user_override else body
+    if code.startswith("ko"):
+        body = (
+            "\n\n[언어 요구사항 / Language] "
+            f"모든 독자 대면 텍스트(제목, 본문, 설명, 힌트, 전환 문장, "
+            f"문제, 선택지 등)를 엄격히 {label}로 작성하세요. "
+            "참고자료, JSON 필드명, 프롬프트 속 영어 용어가 나와도 "
+            "언어를 전환하지 마세요. 필요한 고유명사 원문(인명, 제품명, 수식 변수 기호 "
+            f"등)만 유지하고, 나머지는 모두 {label}를 쓰세요."
+        )
+        return f"{body} {_OVERRIDE_KO}" if allow_user_override else body
     if code == "en":
         body = (
             "\n\n[Language] Write ALL reader-facing text (titles, prose, "
@@ -116,6 +136,7 @@ def append_language_directive(
 __all__ = [
     "append_language_directive",
     "is_chinese",
+    "is_korean",
     "language_directive",
     "language_label",
     "normalize_language",
