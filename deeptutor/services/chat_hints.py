@@ -33,6 +33,7 @@ import time
 from typing import Any
 
 from deeptutor.services.prompt.language import is_chinese as _is_zh
+from deeptutor.services.prompt.language import is_korean as _is_ko
 from deeptutor.services.singleflight_cache import AsyncSingleFlightTTLCache
 
 logger = logging.getLogger(__name__)
@@ -171,8 +172,7 @@ _SYSTEM_KO = """사용자가 채팅창에 다음으로 입력할 가능성이 �
 
 
 def _language(language: str) -> str:
-    lang = str(language or "en").lower()
-    return "zh" if lang.startswith("zh") else "ko" if lang.startswith("ko") else "en"
+    return "zh" if _is_zh(language) else "ko" if _is_ko(language) else "en"
 
 
 def _render(material: _Material, language: str) -> str:
