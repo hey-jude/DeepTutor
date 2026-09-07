@@ -1,0 +1,6 @@
+short_description: "학습자의 Mastery Path 주제 목록 — 진도, 복습 예정, 대화, 각 레슨 개요를 보여줍니다."
+when_to_use: "학습자가 질문이 아니라 공부하는 것을 말할 때 씁니다. \"통계 코스 1강 다시 봐줘\", \"지금 뭐 하던 중이지?\", \"ML 패스로 퀴즈 내줘\". 다른 mastery_* 탐색 도구보다 항상 먼저 호출해서 말한 것을 실제 id로 바꿔라."
+input_format: "전부는 {}. 주제·목표·레슨 이름 필터는 {\"query\": \"stats\"}."
+guideline: "학습자 말은 보통 한 주제, 흔히 그 안의 한 레슨을 가리키는 흐릿한 지시다. 이걸로 둘 다 확정하라. 여기서 주제를 가르치겠다고 나서지 마라 — 채팅에는 지도도 개요도 관문도 없다. 확정하고 mastery_open_session/mastery_new_session으로 넘겨라."
+note: "읽기 전용, 주제가 하나라도 있을 때만 마운트된다. `mastery_paths`와는 함께 마운트 안 된다(지도 튜터 턴은 그쪽 atlas로 읽는다)."
+phase: "exploration"
