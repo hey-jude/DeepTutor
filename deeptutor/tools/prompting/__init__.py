@@ -44,6 +44,8 @@ def _normalize_language(language: str) -> str:
     normalized = language.lower()
     if normalized.startswith("zh"):
         return "zh"
+    if normalized.startswith("ko"):
+        return "ko"
     if normalized.startswith("en"):
         return "en"
     return normalized
