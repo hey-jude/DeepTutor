@@ -1,0 +1,6 @@
+short_description: "`gh` CLI로 GitHub PR/이슈/리포/CI 실행을 읽기 전용으로 조회합니다."
+when_to_use: "특정 GitHub 리소스에 대한 질문일 때: '이 PR CI 통과했나', 'owner/repo 최근 이슈 뭐 있나', '이 릴리스 변경점 보여줘'. **일반 코드 개념 질문에는 쓰지 마라** — 학습 지식으로 답하거나 ``web_search``를 써라."
+input_format: "{\"query_type\": \"pr|issue|run|repo|api\", \"target\": \"owner/repo[#number] 또는 전체 URL. query_type이 api면 상대 gh api 경로\"}."
+guideline: "구조상 읽기 전용이다 — 댓글, 종료, 머지 불가. 쓰기 작업은 사용자에게 GitHub에서 직접 하라고 말하라. 출력은 JSON이다. 통째로 붙이지 말고 관련 필드만 뽑아 답하라."
+note: "서버에 `gh` CLI가 없으면 명확한 에러가 온다 — GitHub 상태를 지어내지 말고 솔직히 전달하라."
+phase: "exploration"

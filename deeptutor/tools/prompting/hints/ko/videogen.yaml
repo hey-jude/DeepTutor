@@ -1,0 +1,5 @@
+short_description: "설정된 비디오 생성 서비스로 원본 비디오를 만들고 활성 워크스페이스 outputs/ 아래에 저장합니다."
+when_to_use: "생성된 비디오, 움직이는 장면, 시네마틱 클립, text-to-video 결과를 사용자가 물을 때 씁니다. 오래 걸리는 미디어 서비스다. 프로그래밍 방식 렌더링·후처리는 exec를 써라."
+input_format: "생생하고 자족적인 장면+모션 프롬프트. 선택 aspect_ratio, duration."
+guideline: "생성형 비디오는 videogen을 직접 호출하라. 렌더/다운로드 결과를 기다려라. 정확한 워크스페이스 상대 경로가 돌아올 때만 생성 성공을 주장하라. 그리고 Markdown에 링크하기 전에 그 경로로 workspace_present를 호출하라. 제공자 URL이나 호스트 경로는 절대 붙이지 마라."
+phase: "synthesis"

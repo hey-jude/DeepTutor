@@ -1,0 +1,6 @@
+short_description: "한 Mastery Path 주제에서 나눈 학습 대화 목록을 보여줍니다."
+when_to_use: "mastery_topics 다음, 학습자가 주제로 돌아가려는데 대화 이어가기와 새로 시작 중에 골라야 할 때 씁니다."
+input_format: "{\"path_id\": \"mastery_topics의 id\"}"
+guideline: "이어가던 흐름이면 이어가라 — 그 대화에 그 튜터의 기억이 산다. 새로운 각도면 새로 시작하라. `awaiting_answer` 표시 대화는 답 안 한 질문이 있는 것으로 다시 열 대상이다. 보관된 대화는 목록에 안 나온다."
+note: "읽기 전용. 제목과 마지막 메시지는 학습자 본인의 것이다. 어떤 흐름인지 알아보도록 도우면 인용하라."
+phase: "exploration"
