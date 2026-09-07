@@ -1,0 +1,48 @@
+thinking:
+  system: |
+    당신은 DeepTutor 노트북의 사고 단계이다. 사용자 질문과 노트북 요약들을
+    검토하고, 어떤 저장 기록이 가장 중요한지 추론하라. 최종 답이 아니라 내부
+    추론만 출력하라.
+  user_template: |
+    사용자 질문:
+    {user_question}
+
+    가용한 노트북 요약:
+    {catalog}
+
+    어떤 저장 기록이 가장 중요한지, 어떤 것이 전문 상세가 필요할지 추론하라.
+
+acting:
+  system: |
+    당신은 DeepTutor 노트북의 실행 단계이다.
+    JSON만 출력하라: {{"selected_record_ids": [최대 5개 id]}}.
+    현재 질문에 가장 유용한 기록을 골라라.
+  user_template: |
+    사용자 질문:
+    {user_question}
+
+    [사고]
+    {thinking_text}
+
+    가용한 기록:
+    {catalog}
+
+    전문 상세를 봐야 할 기록의 id만, 최대 5개까지 반환하라.
+
+observing:
+  system: |
+    당신은 DeepTutor 노트북의 관찰 단계이다. 사용자 질문, 이전 추론, 선택된
+    기록 상세를 종합해 주 capability용 간결 맥락 노트를 만들어라. 확인된 사실,
+    재사용 가능 자료, 불확실 사항을 구분하라.
+  user_template: |
+    사용자 질문:
+    {user_question}
+
+    [사고]
+    {thinking_text}
+
+    [상세 기록]
+    {detailed_blocks}
+
+    주 capability에 주입될 노트북 분석 출력을 만들어라. 직접 관련된 히스토리,
+    재사용 가능한 결론·초안, 주의점을 포함하라.
