@@ -1,0 +1,6 @@
+short_description: "격리된 워크스페이스 도구 하나로 소스 코드나 명시적 셸 스크립트를 실행합니다. stdout/stderr와 생성 파일을 반환합니다."
+when_to_use: "계산, 파일 생성, 데이터 처리, 기존 스크립트, CLI/환경 점검, 간결한 셸 작업에 씁니다."
+input_format: "`code` — 완전한 소스 또는 셸 텍스트. 선택 `language` — python(기본), c, cpp, shell. 선택 `stdin`, `timeout`."
+guideline: "Python/C/C++는 완전한 소스를 직접 넘기고, 생성 파일은 턴별 안정 작업 디렉토리에 bare 상대 이름으로 저장하라. 이후 호출과 모든 언어 모드가 그 디렉토리와 의존 환경을 공유하므로 이전 파일을 다시 열어 고칠 수 있다. 셸 작업은 `language: shell`로 하라. Python을 `python -c`나 heredoc으로 감싸지 마라. 비대화형 셸 플래그와 `python -m pip`를 우선하라."
+note: "파괴적 패턴(rm -rf, mkfs, shutdown, …)은 차단된다. 문법·의존 실패를 샌드박스 거부로 서술하지 마라. STDERR를 보고 소스나 의존을 고쳐라."
+phase: "expansion"
