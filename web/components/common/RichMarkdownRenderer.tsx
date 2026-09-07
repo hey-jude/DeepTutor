@@ -702,6 +702,9 @@ export default function RichMarkdownRenderer({
   );
   const remarkPlugins = useMemo(() => {
     const p: Array<any> = [remarkGfm];
+    // singleTilde:false keeps single `~` (e.g. 10~15%) literal; a double
+    // `~~` still renders as (intentional) strikethrough.
+    p[0] = [remarkGfm, { singleTilde: false }];
     if (plugins.remarkMath) p.push(plugins.remarkMath as never);
     if (fileLinkPlugin) p.push(fileLinkPlugin as never);
     return p;
