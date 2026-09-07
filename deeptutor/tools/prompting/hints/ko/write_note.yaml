@@ -1,0 +1,6 @@
+short_description: "새 노트북 기록을 저장하거나 기존 기록을 고칩니다. mode='append'(신규) 또는 'edit'(기존 패치)."
+when_to_use: "append: 사용자가 저장을 명시 요청했거나, 턴이 자족적 walkthrough를 내서 간직할 만할 때. 퀴즈 문제·오답 정리는 노트북 기록이 아니라 `question_bank` 일이다. edit: 사용자가 이전에 저장한 기록의 수정/확장/정정을 요청했을 때. edit은 항상 먼저 `list_notebook`을 돌려서 맞는 record_id를 확보하라."
+input_format: "append: {\"mode\": \"append\", \"notebook_id\": \"...\", \"title\": \"...\", \"turns_to_include\": \"3\" | \"all\", \"note\": \"선택\"}. edit: {\"mode\": \"edit\", \"notebook_id\": \"...\", \"record_id\": \"...\", \"title\": 선택, \"content\": 선택, \"note\": 선택}. append 모드에서는 본문을 쓰지 않는다 — 도구가 실제 채팅 전사를 직접 넣는다. 에이전트 작성 요약을 저장하려고 작정한 때만 `content`를 넘겨라."
+guideline: "기본 `turns_to_include`는 3이다. 사용자가 '이 대화 통째로 저장해줘'라고 하면 'all'을 써라. 노트북 id나 기록 id를 지어내지 마라 — 스키마 enum에 유효한 notebook_id가 나열돼 있고, record id는 `list_notebook`이 준다. 선택 `note`는 짧은 코멘트('왜 중요한지', '기억할 맥락')이지 본문이 아니다."
+note: "노트북이 하나라도 있을 때만 자동 마운트된다. 성공하면 결과에 대상 노트북 이름 + 기록 id가 온다 — 확인용으로 사용자에게 보여줘라. edit은 어느 필드가 바뀌었는지 결과가 확인해 준다."
+phase: "synthesis"
