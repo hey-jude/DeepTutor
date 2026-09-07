@@ -1,0 +1,6 @@
+short_description: "학술 배경과 최신 방법론용으로 arXiv 프리프린트를 검색합니다."
+when_to_use: "연구 논문, 최신 방법, 학술 인용이 필요할 때 씁니다. 표준 교과서 질문은 건너뛰어라."
+input_format: "**최대 3개 영어 단어** (예: `agent harness`, `LLM benchmark`). 완전한 문장 금지, 4단어 이상 금지, 명사구 중첩 금지."
+guideline: "paper_search는 arXiv만 커버한다. 결과 0건이면 쿼리를 계속 고치지 말고 web_search로 바꾸거나 FINISH하라."
+note: "arXiv 전용. 산업 전용 용어는 결과가 없을 수 있다."
+phase: "expansion"
