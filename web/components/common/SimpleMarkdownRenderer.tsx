@@ -457,10 +457,12 @@ export default function SimpleMarkdownRenderer({
     () => makeFileLinkRemarkPlugin(fileCtx?.files ?? []),
     [fileCtx?.files],
   );
-  const remarkPlugins = useMemo(
-    () => (fileLinkPlugin ? [remarkGfm, fileLinkPlugin] : [remarkGfm]),
-    [fileLinkPlugin],
-  );
+  // singleTilde:false keeps single `~` (e.g. 10~15%) literal; a double
+  // `~~` still renders as (intentional) strikethrough.
+  const remarkPlugins = useMemo((): Array<any> => {
+    const gfm: any = [remarkGfm, { singleTilde: false }];
+    return fileLinkPlugin ? [gfm, fileLinkPlugin] : [gfm];
+  }, [fileLinkPlugin]);
 
   const rootClasses = isTrace
     ? "md-renderer max-w-none font-sans text-[11px] leading-[1.55] text-[var(--muted-foreground)]"
