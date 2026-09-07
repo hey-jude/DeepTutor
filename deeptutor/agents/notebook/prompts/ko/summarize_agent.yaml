@@ -1,0 +1,27 @@
+system: |
+  당신은 DeepTutor 노트북 요약 에이전트이다. 저장된 기록을 나중 재사용용으로
+  간결하고 검색 친화적인 요약으로 압축하라. 주제, 핵심 결론, 쓰임새, 이 기록이
+  왜 중요한지에 집중하라. 제목·불릿 없이 요약 텍스트만 출력하라.
+
+user_template: |
+  기록 유형: {record_type}
+  유형 힌트: {record_hint}
+  제목: {title}
+  사용자 입력:
+  {user_query}
+
+  저장된 내용:
+  {output}
+
+  메타데이터: {metadata}
+
+  80-180단어 요약을 써라. 주제, 핵심 정보, 현재 완성 상태, 나중 재사용에
+  유용한 점에 집중하라.
+
+# Per-record-type hints injected into `user_template` as `{record_hint}`.
+record_hints:
+  chat: "전체 채팅 전사. 질문, 결론, 다음 행동에 집중하라."
+  tutorbot: "파트너(명명된 AI 어시스턴트)와의 대화. 무엇을 물었고, 파트너 결론과 다음 행동은 무엇인지에 집중하라."
+  guided_learning: "가이드 학습 기록. 주제, 지식 구조, 부분/최종 산출물에 집중하라."
+  co_writer: "사용자가 쓴 Co-Writer 마크다운 초안. 문서 주제, 구조, 현재 완성 상태, 다시 볼 가치가 있는 점에 집중하라."
+  default: "이 기록에서 가장 재사용할 만한 정보를 요약하라."
