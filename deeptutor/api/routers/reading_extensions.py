@@ -12,6 +12,8 @@ from uuid import uuid4
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+logger = logging.getLogger(__name__)
+
 from deeptutor.multi_user.learning_access import (
     allowed_reading_extensions,
     assert_learning_material,
@@ -156,6 +158,11 @@ async def run_extension_action(
     run = extension.run_action
     sync_plugin = not inspect.iscoroutinefunction(run)
     if not registry.begin_action(extension_id, circuit_break=sync_plugin):
+        logger.warning(
+            "reading extension %s action %s rejected: busy or circuit-broken",
+            extension_id,
+            action,
+        )
         raise HTTPException(
             status_code=503,
             detail=_unavailable_detail(reason="busy_or_circuit_open"),
@@ -189,7 +196,12 @@ async def run_extension_action(
             await _persist_reading_quiz_pending(material_id, payload.locator, quiz_payload)
         return dumped
     except TimeoutError as exc:
-        logger.warning("Reading extension %s action %s timed out", extension_id, action)
+        logger.warning(
+            "reading extension %s action %s timed out after %ss",
+            extension_id,
+            action,
+            ACTION_TIMEOUT_S,
+        )
         raise HTTPException(
             status_code=503,
             detail=_unavailable_detail(reason="timed_out"),
@@ -209,7 +221,12 @@ async def run_extension_action(
             ),
         ) from exc
     except Exception as exc:
-        logger.exception("Reading extension %s action %s failed", extension_id, action)
+        logger.exception(
+            "reading extension %s action %s failed: %s",
+            extension_id,
+            action,
+            exc,
+        )
         raise HTTPException(
             status_code=503,
             detail=_unavailable_detail(reason=str(exc)),
