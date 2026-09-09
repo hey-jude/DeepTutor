@@ -7,18 +7,18 @@ import { SettingRow, SettingSection, SettingsPageHeader } from "./shared";
 import { useUiSettings } from "@/features/settings/store";
 import { useSettings } from "@/features/settings/store/SettingsStore";
 
-/** The en/zh segmented control both language rows use. */
+/** The en/zh/ko segmented control both language rows use. */
 function LanguageToggle({
   value,
   onChange,
 }: {
   value: string;
-  onChange: (next: "en" | "zh") => void;
+  onChange: (next: "en" | "zh" | "ko") => void;
 }) {
   const { t } = useTranslation();
   return (
     <div className="flex gap-0.5 rounded-lg bg-[var(--muted)] p-0.5">
-      {(["en", "zh"] as const).map((option) => (
+      {(["en", "zh", "ko"] as const).map((option) => (
         <button
           key={option}
           aria-pressed={value === option}
@@ -29,7 +29,11 @@ function LanguageToggle({
               : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
           }`}
         >
-          {option === "en" ? t("language.english") : t("language.chinese")}
+          {option === "en"
+            ? t("language.english")
+            : option === "zh"
+              ? t("language.chinese")
+              : t("language.korean")}
         </button>
       ))}
     </div>
