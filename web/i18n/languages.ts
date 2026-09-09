@@ -6,6 +6,7 @@ export const APP_LANGUAGES = [
   { code: "de", labelKey: "language.german" },
   { code: "uk", labelKey: "language.ukrainian" },
   { code: "pl", labelKey: "language.polish" },
+  { code: "ko", labelKey: "language.korean" },
 ] as const;
 
 export type AppLanguage = (typeof APP_LANGUAGES)[number]["code"];
