@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+import logging
 import re
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field, ValidationError
+
+logger = logging.getLogger(__name__)
 
 from deeptutor.multi_user.learning_access import (
     allowed_reading_extensions,
@@ -97,6 +100,11 @@ async def run_extension_action(
             detail="This reading unit is too large for the extension protocol.",
         ) from exc
     if not registry.begin_action(extension_id):
+        logger.warning(
+            "reading extension %s action %s rejected: busy or circuit-broken",
+            extension_id,
+            action,
+        )
         raise HTTPException(
             status_code=503,
             detail={
@@ -106,13 +114,17 @@ async def run_extension_action(
         )
     try:
         async with asyncio.timeout(ACTION_TIMEOUT_S):
-            loop = asyncio.get_running_loop()
-            value = await loop.run_in_executor(
-                registry.executor_for(extension_id),
-                extension.run_action,
-                action,
-                context,
-            )
+            handler = extension.run_action
+            if inspect.iscoroutinefunction(handler):
+                value = await handler(action, context)
+            else:
+                loop = asyncio.get_running_loop()
+                value = await loop.run_in_executor(
+                    registry.executor_for(extension_id),
+                    handler,
+                    action,
+                    context,
+                )
             if inspect.isawaitable(value):
                 value = await value
         result = (
@@ -125,6 +137,12 @@ async def run_extension_action(
         return result.model_dump()
     except TimeoutError as exc:
         registry.mark_timed_out(extension_id)
+        logger.warning(
+            "reading extension %s action %s timed out after %ss",
+            extension_id,
+            action,
+            ACTION_TIMEOUT_S,
+        )
         raise HTTPException(
             status_code=503,
             detail={
@@ -133,6 +151,12 @@ async def run_extension_action(
             },
         ) from exc
     except Exception as exc:
+        logger.exception(
+            "reading extension %s action %s failed: %s",
+            extension_id,
+            action,
+            exc,
+        )
         raise HTTPException(
             status_code=503,
             detail={
