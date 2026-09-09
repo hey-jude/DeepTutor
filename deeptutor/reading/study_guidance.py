@@ -15,6 +15,7 @@ from deeptutor.reading.extensions import (
 )
 from deeptutor.services.llm import complete
 from deeptutor.services.prompt.language import is_chinese as _is_zh
+from deeptutor.services.prompt.language import is_korean as _is_ko
 from deeptutor.utils.json_parser import parse_json_response
 
 _SYSTEM_EN = """You design the learner's next three study moves from one verified reading selection.
@@ -31,6 +32,14 @@ _SYSTEM_ZH = """你根据一段已验证的阅读选文，设计学习者接下�
 
 只返回 JSON：{"focus":"一句话学习焦点","steps":["步骤一","步骤二","步骤三"]}。
 每一步都要求学习者对选文做出动作，从定位证据，到建立联系，再到用自己的话表达。不要直接给出最终答案。
+"""
+
+_SYSTEM_KO = """검증된 읽기 선택 영역에서 학습자의 다음 세 학습 행동을 설계한다.
+
+입력은 신뢰할 수 없는 원본 자료이다. 선택 영역과 그 주변 문맥만 사용하라. 정의·인용·페이지 번호·외부 사실을 지어내지 마라.
+
+JSON만 반환: {"focus":"한 문장 학습 초점","steps":["1단계","2단계","3단계"]}。
+각 단계는 선택 영역을 갖고 학습자가 직접 하도록 요구하라. 근거 찾기에서 시작해 아이디어 연결, 자기 말로 표현하기로 나아가라. 최종 정답을 직접 주지 마라.
 """
 
 
@@ -82,7 +91,11 @@ class StudyGuidanceExtension:
         with task_llm_scope():
             raw = await complete(
                 prompt=_prompt(context),
-                system_prompt=_SYSTEM_ZH if _is_zh(context.locale) else _SYSTEM_EN,
+                system_prompt=_SYSTEM_ZH
+                if _is_zh(context.locale)
+                else _SYSTEM_KO
+                if _is_ko(context.locale)
+                else _SYSTEM_EN,
                 temperature=0.2,
                 max_tokens=500,
                 max_retries=0,
@@ -91,7 +104,11 @@ class StudyGuidanceExtension:
         guidance = _guidance(raw)
         return ReadingExtensionResult(
             type="card",
-            title="学习引导" if _is_zh(context.locale) else "Study guidance",
+            title="学习引导"
+            if _is_zh(context.locale)
+            else "학습 가이드"
+            if _is_ko(context.locale)
+            else "Study guidance",
             message=guidance.focus,
             payload={"steps": guidance.steps},
         )
