@@ -154,6 +154,25 @@ async def test_invalid_or_ungrounded_model_output_is_rejected(monkeypatch, respo
         await ReadingQuizExtension().run_action("start", _context())
 
 
+@pytest.mark.asyncio
+async def test_quiz_retries_once_when_evidence_is_not_verbatim(monkeypatch):
+    calls = []
+
+    async def complete(**kwargs):
+        calls.append(kwargs)
+        if len(calls) == 1:
+            return _model_response(evidence="paraphrased evidence not in context")
+        return _model_response()
+
+    monkeypatch.setattr("deeptutor.reading.quiz.complete", complete)
+    result = await ReadingQuizExtension().run_action("start", _context())
+
+    assert result.type == "quiz"
+    assert len(result.payload["questions"]) == 3
+    assert len(calls) == 2
+    assert "verbatim" in calls[1]["system_prompt"]
+
+
 def test_quiz_is_registered_as_a_packaged_extension():
     project = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
     group = project["project"]["entry-points"]["deeptutor.reading_extensions"]
