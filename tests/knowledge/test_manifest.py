@@ -202,6 +202,22 @@ class TestManifestNote:
         assert render_manifest_note([], language="en") == ""
 
 
+class TestKoreanFallback:
+    def test_note_falls_back_to_english_for_korean(self, tmp_path: Path) -> None:
+        kb_dir = _kb(tmp_path, "a.pdf")
+        manifest = build_manifest(name="Course", kb_dir=kb_dir, entry=_READY)
+
+        note = render_manifest_note([manifest], language="ko")
+
+        assert "1 document" in note
+
+    def test_report_falls_back_to_english_for_korean(self, tmp_path: Path) -> None:
+        kb_dir = _kb(tmp_path, "a.pdf")
+        manifest = build_manifest(name="Course", kb_dir=kb_dir, entry=_READY)
+
+        assert "1 document." in render_manifest_report(manifest, language="ko")
+
+
 class TestManifestReport:
     def test_report_lists_documents_with_sizes(self, tmp_path: Path) -> None:
         kb_dir = _kb(tmp_path, "a.pdf")
