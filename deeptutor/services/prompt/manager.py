@@ -132,10 +132,11 @@ class PromptManager:
         Chinese (#712) — the language directive, not the prompt file, is what
         makes the model answer in the requested language.
         """
+        base = lang_code.split("-", 1)[0]
         base_chain = self.LANGUAGE_FALLBACKS.get(lang_code) or self.LANGUAGE_FALLBACKS.get(
-            lang_code.split("-", 1)[0], []
+            base, []
         )
-        return list(dict.fromkeys([lang_code, *base_chain, "en"]))
+        return list(dict.fromkeys([lang_code, base, *base_chain, "en"]))
 
     def _candidate_prompt_dirs(self, module_name: str) -> list[Path]:
         """Return legacy and current prompt roots for a module."""
