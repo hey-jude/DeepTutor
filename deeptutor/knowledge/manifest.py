@@ -387,7 +387,10 @@ _REPORT_TEXT: dict[str, dict[str, str]] = {
 
 
 def _lang(language: str) -> str:
-    return "zh" if str(language or "en").lower().startswith("zh") else "ko" if str(language or "en").lower().startswith("ko") else "en"
+    # The note/report/label tables only ship en/zh wordings; any other
+    # language (e.g. ko) falls back to English. What makes the model answer
+    # in the requested language is the language directive, not this note.
+    return "zh" if str(language or "en").lower().startswith("zh") else "en"
 
 
 def _colon(language: str) -> str:
