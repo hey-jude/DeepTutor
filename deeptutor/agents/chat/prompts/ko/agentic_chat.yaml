@@ -120,7 +120,7 @@ notices:
   loop_budget_exhausted: "탐색 예산 도달. 모은 것으로 답변합니다."
   loop_settlement: "탐색 예산 도달. 최종 답변 전 필수 후속을 마칩니다."
   output_truncated: "모델 출력이 토큰 한도에 걸렸습니다. 이어서 계속하도록 했습니다."
-  loop_error_finish: "한 단계가 실패했습니다. 모은 것으로 답변합니다."
+  loop_error_finish: "한 단계가 실패했습니다({error}). 모은 것으로 답변합니다."
   provider_retry: "모델 제공자 연결이 끊겼습니다. 재시도합니다."
   provider_unavailable: "모델 제공자에 닿지 않습니다. 다시 시도해 주세요."
   provider_stream_interrupted: "모델 제공자가 이 응답을 중단했습니다. 다시 시도해 주세요."
