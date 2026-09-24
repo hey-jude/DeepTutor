@@ -103,6 +103,23 @@ async def test_vocabulary_stops_after_two_empty_model_answers(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_vocabulary_pins_the_ui_locale_for_english_source(monkeypatch):
+    calls = []
+
+    async def complete(**kwargs):
+        calls.append(kwargs)
+        return _model_response()
+
+    monkeypatch.setattr("deeptutor.reading.vocabulary.complete", complete)
+    context = _context()
+    context.locale = "ko"
+    result = await VocabularyExtension().run_action("explain", context)
+
+    assert result.title == "어휘 도움말"
+    assert "[언어 요구사항" in calls[0]["system_prompt"]
+
+
+@pytest.mark.asyncio
 async def test_vocabulary_bounds_long_context(monkeypatch):
     text = "".join(f"sentence {index} " for index in range(2_000))
     selection = "sentence 1999"

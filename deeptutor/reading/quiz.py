@@ -16,6 +16,7 @@ from deeptutor.reading.extensions import (
 )
 from deeptutor.services.llm import complete
 from deeptutor.services.llm.structured_retry import json_with_reasoning_retry
+from deeptutor.services.prompt.language import append_language_directive
 from deeptutor.services.prompt.language import is_chinese as _is_zh
 from deeptutor.services.prompt.language import is_korean as _is_ko
 
@@ -43,22 +44,28 @@ JSON만 반환: {"questions":[{"prompt":"문제","choices":["선택지 A","선�
 정확히 세 문제를 반환하라. 각 문제는 서로 다른 네 선택지와 하나의 정답을 가진다. correct_choice_index는 0부터 센다. evidence는 서버 검증용이며 표시 전에 제거된다.
 """
 
-# Appended only for the single bounded retry after a grounding failure.
-_EVIDENCE_RETRY_NOTE = (
-    "\n\nYour previous answer was rejected because its evidence was not copied "
-    "character-for-character from the reading context in its original language. "
-    "Retry: copy each evidence string verbatim from the context. "
-    "Never translate or paraphrase evidence."
-)
+# Exact placeholder values from the per-language system prompts. The model
+# sometimes echoes these instead of writing a real question.
+_PLACEHOLDER_PROMPTS = frozenset({"문제", "题干", "question"})
 
 
 class _QuizQuestion(BaseModel):
     model_config = ConfigDict(extra="ignore", str_strip_whitespace=True)
 
-    prompt: str = Field(min_length=12, max_length=600)
+    # Floor is 4, not 12: a CJK question carries a full sentence in ~10
+    # characters ("문제는 무엇인가요?" is 10). Template-placeholder echoes
+    # are rejected by name in validate_prompt instead of by length.
+    prompt: str = Field(min_length=4, max_length=600)
     choices: list[str] = Field(min_length=4, max_length=4)
     correct_choice_index: int = Field(ge=0, le=3)
     evidence: str = Field(min_length=8, max_length=600)
+
+    @field_validator("prompt")
+    @classmethod
+    def validate_prompt(cls, value: str) -> str:
+        if " ".join(value.casefold().split()) in _PLACEHOLDER_PROMPTS:
+            raise ValueError("Quiz prompt must not copy the template placeholder.")
+        return value
 
     @field_validator("choices")
     @classmethod
@@ -74,7 +81,8 @@ class _QuizQuestion(BaseModel):
 class _Quiz(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
-    questions: list[_QuizQuestion] = Field(min_length=3, max_length=3)
+    # Three requested; fewer served when some model questions are unusable.
+    questions: list[_QuizQuestion] = Field(min_length=1, max_length=3)
 
 
 def _normalise(value: str) -> str:
@@ -119,11 +127,16 @@ class ReadingQuizExtension:
         async def _run(reasoning_effort: str | None) -> str:
             return await complete(
                 prompt=_prompt(context),
-                system_prompt=_SYSTEM_ZH
-                if _is_zh(context.locale)
-                else _SYSTEM_KO
-                if _is_ko(context.locale)
-                else _SYSTEM_EN,
+                # Pin the UI locale: the source material is usually English and
+                # the model follows it without an explicit order.
+                system_prompt=append_language_directive(
+                    _SYSTEM_ZH
+                    if _is_zh(context.locale)
+                    else _SYSTEM_KO
+                    if _is_ko(context.locale)
+                    else _SYSTEM_EN,
+                    context.locale,
+                ),
                 temperature=0.3,
                 max_tokens=2_500,
                 max_retries=0,

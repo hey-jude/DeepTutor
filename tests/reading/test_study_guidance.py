@@ -170,6 +170,32 @@ async def test_invalid_or_overlong_model_output_is_rejected(monkeypatch, respons
         await StudyGuidanceExtension().run_action("guide", _context())
 
 
+@pytest.mark.asyncio
+async def test_study_guidance_pins_the_ui_locale_for_english_source(monkeypatch):
+    calls = []
+
+    async def complete(**kwargs):
+        calls.append(kwargs)
+        return json.dumps(
+            {
+                "focus": "Connect the phrase to its surrounding argument.",
+                "steps": [
+                    "Locate the two claims nearest the selected phrase.",
+                    "Explain how the phrase links those two claims.",
+                    "Rewrite the linked idea in one sentence.",
+                ],
+            }
+        )
+
+    monkeypatch.setattr("deeptutor.reading.study_guidance.complete", complete)
+    context = _context()
+    context.locale = "ko"
+    result = await StudyGuidanceExtension().run_action("guide", context)
+
+    assert result.title == "학습 가이드"
+    assert "[언어 요구사항" in calls[0]["system_prompt"]
+
+
 def test_study_guidance_is_registered_as_a_packaged_extension():
     project = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
     group = project["project"]["entry-points"]["deeptutor.reading_extensions"]
