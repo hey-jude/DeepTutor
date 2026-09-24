@@ -67,6 +67,21 @@ async def test_translation_returns_a_bounded_card(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_translation_pins_the_target_language_not_the_ui_locale(monkeypatch):
+    calls = []
+
+    async def complete(**kwargs):
+        calls.append(kwargs)
+        return _model_response("ko")
+
+    monkeypatch.setattr("deeptutor.reading.translation.complete", complete)
+    result = await TranslationExtension().run_action("translate_ko", _context())
+
+    assert result.title == "번역"
+    assert "[언어 요구사항" in calls[0]["system_prompt"]
+
+
+@pytest.mark.asyncio
 async def test_translation_targets_the_requested_language_not_the_ui_locale(monkeypatch):
     calls = []
 
