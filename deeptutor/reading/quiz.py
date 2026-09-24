@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
@@ -16,7 +17,10 @@ from deeptutor.reading.extensions import (
 from deeptutor.services.llm import complete
 from deeptutor.services.prompt.language import is_chinese as _is_zh
 from deeptutor.services.prompt.language import is_korean as _is_ko
+from deeptutor.services.prompt.language import append_language_directive
 from deeptutor.utils.json_parser import parse_json_response
+
+logger = logging.getLogger(__name__)
 
 _SYSTEM_EN = """You write a short comprehension quiz from one verified reading context.
 
@@ -46,18 +50,37 @@ JSON만 반환: {"questions":[{"prompt":"문제","choices":["선택지 A","선�
 _EVIDENCE_RETRY_NOTE = (
     "\n\nYour previous answer was rejected because its evidence was not copied "
     "character-for-character from the reading context in its original language. "
-    "Retry: copy each evidence string verbatim from the context. "
+    "Retry: copy each evidence string verbatim from the context, keeping each "
+    "under 600 characters. "
+    "Write each prompt as a complete question of at least 12 characters with "
+    "four distinct choices — never copy the example JSON's placeholder values "
+    "as the question text. "
     "Never translate or paraphrase evidence."
 )
+
+
+# Exact placeholder values from the per-language system prompts. The model
+# sometimes echoes these instead of writing a real question.
+_PLACEHOLDER_PROMPTS = frozenset({"문제", "题干", "question"})
 
 
 class _QuizQuestion(BaseModel):
     model_config = ConfigDict(extra="ignore", str_strip_whitespace=True)
 
-    prompt: str = Field(min_length=12, max_length=600)
+    # Floor is 4, not 12: a CJK question carries a full sentence in ~10
+    # characters ("문제는 무엇인가요?" is 10). Template-placeholder echoes
+    # are rejected by name in validate_prompt instead of by length.
+    prompt: str = Field(min_length=4, max_length=600)
     choices: list[str] = Field(min_length=4, max_length=4)
     correct_choice_index: int = Field(ge=0, le=3)
     evidence: str = Field(min_length=8, max_length=600)
+
+    @field_validator("prompt")
+    @classmethod
+    def validate_prompt(cls, value: str) -> str:
+        if " ".join(value.casefold().split()) in _PLACEHOLDER_PROMPTS:
+            raise ValueError("Quiz prompt must not copy the template placeholder.")
+        return value
 
     @field_validator("choices")
     @classmethod
@@ -73,7 +96,8 @@ class _QuizQuestion(BaseModel):
 class _Quiz(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
-    questions: list[_QuizQuestion] = Field(min_length=3, max_length=3)
+    # Three requested; fewer served when some model questions are unusable.
+    questions: list[_QuizQuestion] = Field(min_length=1, max_length=3)
 
 
 def _normalise(value: str) -> str:
@@ -82,17 +106,49 @@ def _normalise(value: str) -> str:
 
 def _quiz(raw: str, context: ReadingContext) -> _Quiz:
     data: Any = parse_json_response(raw, fallback=None)
+    # The model sometimes returns a bare [...] array instead of the
+    # {"questions": [...]} envelope. Accept both.
+    if isinstance(data, list):
+        data = {"questions": data}
     if not isinstance(data, dict):
+        logger.warning("reading quiz model returned non-JSON payload: %r", raw[:500])
         raise ValueError("Reading quiz model returned invalid JSON.")
-    try:
-        quiz = _Quiz.model_validate({"questions": data.get("questions")})
-    except ValidationError as exc:
-        raise ValueError("Reading quiz model returned an invalid shape.") from exc
+    raw_questions = data.get("questions")
+    if not isinstance(raw_questions, list):
+        raise ValueError("Reading quiz model returned an invalid shape.")
 
+    # One bad question must not discard the good ones: validate and ground
+    # each question independently, serve the survivors, retry only when none
+    # survive.
     normalized_context = _normalise(context.visible_text)
-    if any(_normalise(question.evidence) not in normalized_context for question in quiz.questions):
-        raise ValueError("Reading quiz evidence must come from the reading context.")
-    return quiz
+    valid: list[_QuizQuestion] = []
+    dropped_shape = dropped_grounding = 0
+    for item in raw_questions:
+        if not isinstance(item, dict):
+            dropped_shape += 1
+            continue
+        try:
+            question = _QuizQuestion.model_validate(item)
+        except ValidationError:
+            dropped_shape += 1
+            continue
+        if _normalise(question.evidence) not in normalized_context:
+            dropped_grounding += 1
+            continue
+        valid.append(question)
+        if len(valid) >= 3:
+            break
+    if not valid:
+        logger.warning(
+            "reading quiz model returned no usable question "
+            "(%d attempted, %d bad shape, %d ungrounded): %r",
+            len(raw_questions),
+            dropped_shape,
+            dropped_grounding,
+            raw[:500],
+        )
+        raise ValueError("Reading quiz model returned an invalid shape.")
+    return _Quiz(questions=valid)
 
 
 class ReadingQuizExtension:
@@ -123,10 +179,13 @@ class ReadingQuizExtension:
             if _is_ko(context.locale)
             else _SYSTEM_EN
         )
+        # Pin the UI locale last: the source material is usually English and
+        # the model follows it without an explicit order.
+        system_prompt = append_language_directive(base_prompt, context.locale)
         with task_llm_scope(TaskKind.READING_QUIZ):
             raw = await complete(
                 prompt=_prompt(context),
-                system_prompt=base_prompt,
+                system_prompt=system_prompt,
                 temperature=0.3,
                 max_tokens=1000,
                 max_retries=0,
@@ -141,7 +200,9 @@ class ReadingQuizExtension:
             with task_llm_scope(TaskKind.READING_QUIZ):
                 raw = await complete(
                     prompt=_prompt(context),
-                    system_prompt=base_prompt + _EVIDENCE_RETRY_NOTE,
+                    system_prompt=append_language_directive(
+                        base_prompt + _EVIDENCE_RETRY_NOTE, context.locale
+                    ),
                     temperature=0.3,
                     max_tokens=1000,
                     max_retries=0,

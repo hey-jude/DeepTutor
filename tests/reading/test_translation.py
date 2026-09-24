@@ -67,6 +67,21 @@ async def test_translation_returns_a_bounded_card(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_translation_pins_the_target_language_not_the_ui_locale(monkeypatch):
+    calls = []
+
+    async def complete(**kwargs):
+        calls.append(kwargs)
+        return _model_response("ko")
+
+    monkeypatch.setattr("deeptutor.reading.translation.complete", complete)
+    result = await TranslationExtension().run_action("translate_ko", _context())
+
+    assert result.title == "번역"
+    assert "[언어 요구사항" in calls[0]["system_prompt"]
+
+
+@pytest.mark.asyncio
 async def test_translation_targets_the_requested_language_not_the_ui_locale(monkeypatch):
     calls = []
 
@@ -136,27 +151,8 @@ async def test_missing_selection_fails_before_an_llm_call(monkeypatch):
         ),
         json.dumps(
             {
-                "translation": "verified phrase",
-                "alternatives": [
-                    "checked phrase",
-                    "checked phrase",
-                ],
-                "note": "",
-                "target_language": "en",
-            }
-        ),
-        json.dumps(
-            {
                 "translation": "x" * 12_001,
                 "alternatives": [],
-                "note": "",
-                "target_language": "en",
-            }
-        ),
-        json.dumps(
-            {
-                "translation": "verified phrase",
-                "alternatives": ["one", "two", "three", "four"],
                 "note": "",
                 "target_language": "en",
             }
@@ -171,6 +167,39 @@ async def test_invalid_or_wrong_language_model_output_is_rejected(monkeypatch, r
     monkeypatch.setattr("deeptutor.reading.translation.complete", complete)
     with pytest.raises(ValueError):
         await TranslationExtension().run_action("translate_en", _context())
+
+
+@pytest.mark.asyncio
+async def test_sloppy_alternatives_are_sanitized_not_rejected(monkeypatch):
+    async def complete(**_kwargs):
+        return json.dumps(
+            {
+                # Duplicate, whitespace-variant duplicate, copy of the main
+                # translation, empty, and overflow beyond three.
+                "translation": "verified phrase",
+                "alternatives": [
+                    "checked phrase",
+                    "  checked   phrase ",
+                    "verified phrase",
+                    "",
+                    "another reading",
+                    "third reading",
+                    "overflow reading",
+                ],
+                "note": "",
+                "target_language": "en",
+            }
+        )
+
+    monkeypatch.setattr("deeptutor.reading.translation.complete", complete)
+    result = await TranslationExtension().run_action("translate_en", _context())
+
+    assert result.payload["translation"] == "verified phrase"
+    assert result.payload["alternatives"] == [
+        "checked phrase",
+        "another reading",
+        "third reading",
+    ]
 
 
 def test_translation_is_registered_as_a_packaged_extension():

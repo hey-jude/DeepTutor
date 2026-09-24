@@ -151,6 +151,8 @@ class _ContextSummaryAgent(BaseAgent):
             module_name="chat",
             agent_name="context_summary_agent",
             language=language,
+            # Prompts are inline in _summarize; no prompt file exists or is needed.
+            load_prompts=False,
         )
 
     async def process(self, *_args, **_kwargs) -> dict[str, Any]:

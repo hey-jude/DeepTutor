@@ -14,6 +14,7 @@ from deeptutor.reading.extensions import (
     ReadingExtensionResult,
 )
 from deeptutor.services.llm import complete
+from deeptutor.services.prompt.language import append_language_directive
 from deeptutor.utils.json_parser import parse_json_response
 
 _MAX_TRANSLATION_CHARS = 12_000
@@ -78,13 +79,38 @@ def _translation(raw: str, target_language: str) -> _Translation:
     data: Any = parse_json_response(raw, fallback=None)
     if not isinstance(data, dict):
         raise ValueError("Translation model returned invalid JSON.")
+    # Models often omit the echoed target_language despite the system prompt.
+    # Default to the requested language; an explicit mismatch is still rejected below.
+    raw_target = data.get("target_language") or target_language
+    # Alternatives are auxiliary: model sloppiness (duplicates, empties,
+    # copies of the main translation, >3 items) must not discard a good
+    # translation. Sanitize here; the validator remains a safety net.
+    raw_alternatives = data.get("alternatives", [])
+    if isinstance(raw_alternatives, list):
+        main_norm = " ".join(str(data.get("translation") or "").casefold().split())
+        seen = {main_norm} if main_norm else set()
+        cleaned: list[str] = []
+        for item in raw_alternatives:
+            if not isinstance(item, str):
+                continue
+            text = item.strip()
+            if not text:
+                continue
+            norm = " ".join(text.casefold().split())
+            if norm in seen:
+                continue
+            seen.add(norm)
+            cleaned.append(text)
+            if len(cleaned) >= 3:
+                break
+        raw_alternatives = cleaned
     try:
         translation = _Translation.model_validate(
             {
                 "translation": data.get("translation"),
-                "alternatives": data.get("alternatives", []),
+                "alternatives": raw_alternatives,
                 "note": data.get("note", ""),
-                "target_language": data.get("target_language"),
+                "target_language": raw_target,
             }
         )
     except ValidationError as exc:
@@ -120,11 +146,16 @@ class TranslationExtension:
         with task_llm_scope(TaskKind.READING_TRANSLATION):
             raw = await complete(
                 prompt=_prompt(context),
-                system_prompt=_SYSTEM_ZH
-                if target_language == "zh"
-                else _SYSTEM_KO
-                if target_language == "ko"
-                else _SYSTEM_EN,
+                # Pin the TARGET language: the source material is usually
+                # English and the model follows it without an explicit order.
+                system_prompt=append_language_directive(
+                    _SYSTEM_ZH
+                    if target_language == "zh"
+                    else _SYSTEM_KO
+                    if target_language == "ko"
+                    else _SYSTEM_EN,
+                    target_language,
+                ),
                 temperature=0.1,
                 max_tokens=5_000,
                 max_retries=0,

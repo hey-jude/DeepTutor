@@ -17,6 +17,7 @@ from deeptutor.reading.extensions import (
 from deeptutor.services.llm import complete
 from deeptutor.services.prompt.language import is_chinese as _is_zh
 from deeptutor.services.prompt.language import is_korean as _is_ko
+from deeptutor.services.prompt.language import append_language_directive
 from deeptutor.utils.json_parser import parse_json_response
 
 _SYSTEM_EN = """You explain vocabulary from one verified reading selection.
@@ -117,11 +118,16 @@ class VocabularyExtension:
         with task_llm_scope(TaskKind.READING_VOCABULARY):
             raw = await complete(
                 prompt=_prompt(context),
-                system_prompt=_SYSTEM_ZH
-                if _is_zh(context.locale)
-                else _SYSTEM_KO
-                if _is_ko(context.locale)
-                else _SYSTEM_EN,
+                # Pin the UI locale: the source material is usually English
+                # and the model follows it without an explicit order.
+                system_prompt=append_language_directive(
+                    _SYSTEM_ZH
+                    if _is_zh(context.locale)
+                    else _SYSTEM_KO
+                    if _is_ko(context.locale)
+                    else _SYSTEM_EN,
+                    context.locale,
+                ),
                 temperature=0.2,
                 max_tokens=800,
                 max_retries=0,

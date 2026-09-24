@@ -105,12 +105,6 @@ async def test_missing_selection_fails_before_an_llm_call(monkeypatch):
     [
         "not json",
         json.dumps({"focus": "too short steps", "steps": ["one", "two", "three"]}),
-        json.dumps(
-            {
-                "focus": "A valid focus for this selected reading passage.",
-                "steps": ["x" * 300, "Link the claim.", "Restate the idea."],
-            }
-        ),
     ],
 )
 @pytest.mark.asyncio
@@ -121,6 +115,83 @@ async def test_invalid_or_overlong_model_output_is_rejected(monkeypatch, respons
     monkeypatch.setattr("deeptutor.reading.study_guidance.complete", complete)
     with pytest.raises(ValueError, match="invalid (?:JSON|shape)"):
         await StudyGuidanceExtension().run_action("guide", _context())
+
+
+@pytest.mark.asyncio
+async def test_study_guidance_serves_valid_steps_when_one_is_overlong(monkeypatch):
+    async def complete(**_kwargs):
+        return json.dumps(
+            {
+                "focus": "A valid focus for this selected reading passage.",
+                "steps": ["x" * 300, "Link the claim.", "Restate the idea."],
+            }
+        )
+
+    monkeypatch.setattr("deeptutor.reading.study_guidance.complete", complete)
+    result = await StudyGuidanceExtension().run_action("guide", _context())
+
+    assert result.type == "card"
+    assert result.message == "A valid focus for this selected reading passage."
+    assert result.payload == {"steps": ["Link the claim.", "Restate the idea."]}
+
+
+@pytest.mark.asyncio
+async def test_study_guidance_accepts_step_objects_with_a_task_field(monkeypatch):
+    async def complete(**_kwargs):
+        return json.dumps(
+            {
+                "focus": "A valid focus for this selected reading passage.",
+                "steps": [
+                    {
+                        "selection": "Table 1 compares the graph against baselines.",
+                        "task": "Find the cases where the graph ranks first.",
+                    },
+                    {
+                        "selection": "Compared with the strongest baseline.",
+                        "question": "List the model-benchmark pairs it wins.",
+                    },
+                    "Link the claim.",
+                ],
+            }
+        )
+
+    monkeypatch.setattr("deeptutor.reading.study_guidance.complete", complete)
+    result = await StudyGuidanceExtension().run_action("guide", _context())
+
+    assert result.type == "card"
+    assert result.payload == {
+        "steps": [
+            "Find the cases where the graph ranks first.",
+            "List the model-benchmark pairs it wins.",
+            "Link the claim.",
+        ]
+    }
+
+
+@pytest.mark.asyncio
+async def test_study_guidance_pins_the_ui_locale_for_english_source(monkeypatch):
+    calls = []
+
+    async def complete(**kwargs):
+        calls.append(kwargs)
+        return json.dumps(
+            {
+                "focus": "Connect the phrase to its surrounding argument.",
+                "steps": [
+                    "Locate the two claims nearest the selected phrase.",
+                    "Explain how the phrase links those two claims.",
+                    "Rewrite the linked idea in one sentence.",
+                ],
+            }
+        )
+
+    monkeypatch.setattr("deeptutor.reading.study_guidance.complete", complete)
+    context = _context()
+    context.locale = "ko"
+    result = await StudyGuidanceExtension().run_action("guide", context)
+
+    assert result.title == "학습 가이드"
+    assert "[언어 요구사항" in calls[0]["system_prompt"]
 
 
 def test_study_guidance_is_registered_as_a_packaged_extension():

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
@@ -16,7 +17,10 @@ from deeptutor.reading.extensions import (
 from deeptutor.services.llm import complete
 from deeptutor.services.prompt.language import is_chinese as _is_zh
 from deeptutor.services.prompt.language import is_korean as _is_ko
+from deeptutor.services.prompt.language import append_language_directive
 from deeptutor.utils.json_parser import parse_json_response
+
+logger = logging.getLogger(__name__)
 
 _SYSTEM_EN = """You design the learner's next three study moves from one verified reading selection.
 
@@ -47,7 +51,8 @@ class _Guidance(BaseModel):
     model_config = ConfigDict(extra="ignore", str_strip_whitespace=True)
 
     focus: str = Field(min_length=8, max_length=600)
-    steps: list[str] = Field(min_length=3, max_length=3)
+    # Three requested; fewer served when some model steps are unusable.
+    steps: list[str] = Field(min_length=1, max_length=3)
 
     @field_validator("steps")
     @classmethod
@@ -60,10 +65,31 @@ class _Guidance(BaseModel):
 def _guidance(raw: str) -> _Guidance:
     data: Any = parse_json_response(raw, fallback=None)
     if not isinstance(data, dict):
+        logger.warning("study guidance model returned non-JSON payload: %r", raw[:500])
         raise ValueError("Study guidance model returned invalid JSON.")
+    raw_steps = data.get("steps")
+    if not isinstance(raw_steps, list):
+        logger.warning("study guidance model returned no usable step: %r", raw[:500])
+        raise ValueError("Study guidance model returned an invalid shape.")
+    # One bad step must not discard the good ones. The model sometimes
+    # returns richer step objects ({"selection": ..., "task"|"question": ...});
+    # the learner-facing instruction is what the card displays.
+    steps: list[str] = []
+    for item in raw_steps:
+        if isinstance(item, dict):
+            item = item.get("task", item.get("question"))
+        if isinstance(item, str) and 8 <= len(item.strip()) <= 280:
+            steps.append(item)
+        if len(steps) >= 3:
+            break
     try:
-        return _Guidance.model_validate({"focus": data.get("focus"), "steps": data.get("steps")})
+        return _Guidance.model_validate({"focus": data.get("focus"), "steps": steps})
     except ValidationError as exc:
+        logger.warning(
+            "study guidance model returned no usable step (%d attempted): %r",
+            len(raw_steps),
+            raw[:500],
+        )
         raise ValueError("Study guidance model returned an invalid shape.") from exc
 
 
@@ -91,11 +117,16 @@ class StudyGuidanceExtension:
         with task_llm_scope(TaskKind.READING_GUIDANCE):
             raw = await complete(
                 prompt=_prompt(context),
-                system_prompt=_SYSTEM_ZH
-                if _is_zh(context.locale)
-                else _SYSTEM_KO
-                if _is_ko(context.locale)
-                else _SYSTEM_EN,
+                # Pin the UI locale: the source material is usually English
+                # and the model follows it without an explicit order.
+                system_prompt=append_language_directive(
+                    _SYSTEM_ZH
+                    if _is_zh(context.locale)
+                    else _SYSTEM_KO
+                    if _is_ko(context.locale)
+                    else _SYSTEM_EN,
+                    context.locale,
+                ),
                 temperature=0.2,
                 max_tokens=500,
                 max_retries=0,

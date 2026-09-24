@@ -173,6 +173,176 @@ async def test_quiz_retries_once_when_evidence_is_not_verbatim(monkeypatch):
     assert "verbatim" in calls[1]["system_prompt"]
 
 
+@pytest.mark.asyncio
+async def test_quiz_retry_guides_model_away_from_placeholder_prompts(monkeypatch):
+    calls = []
+
+    async def complete(**kwargs):
+        calls.append(kwargs)
+        if len(calls) == 1:
+            # Prod shape failure: template placeholder echoed as the prompt,
+            # evidence over the length bound.
+            return json.dumps(
+                {
+                    "questions": [
+                        {
+                            "prompt": "문제",
+                            "choices": ["선택지 A", "선택지 B", "선택지 C", "선택지 D"],
+                            "correct_choice_index": 0,
+                            "evidence": "verified phrase supports the answer " * 30,
+                        }
+                    ]
+                    * 3
+                }
+            )
+        return _model_response()
+
+    monkeypatch.setattr("deeptutor.reading.quiz.complete", complete)
+    result = await ReadingQuizExtension().run_action("start", _context())
+
+    assert result.type == "quiz"
+    assert len(result.payload["questions"]) == 3
+    assert len(calls) == 2
+    assert "placeholder" in calls[1]["system_prompt"]
+
+
+@pytest.mark.asyncio
+async def test_quiz_serves_valid_questions_when_one_is_unusable(monkeypatch):
+    calls = []
+
+    def _good(prompt: str) -> dict:
+        return {
+            "prompt": prompt,
+            "choices": [
+                "An unrelated phrase",
+                "A checked phrase",
+                "A guessed phrase",
+                "An omitted phrase",
+            ],
+            "correct_choice_index": 1,
+            "evidence": "verified phrase supports the answer",
+        }
+
+    async def complete(**kwargs):
+        calls.append(kwargs)
+        return json.dumps(
+            {
+                "questions": [
+                    {
+                        # Prod defect: template placeholder echoed as the prompt.
+                        "prompt": "문제",
+                        "choices": ["선택지 A", "선택지 B", "선택지 C", "선택지 D"],
+                        "correct_choice_index": 0,
+                        "evidence": "verified phrase supports the answer " * 30,
+                    },
+                    _good("Which phrase does the passage verify first?"),
+                    _good("Which phrase does the passage verify second?"),
+                ]
+            }
+        )
+
+    monkeypatch.setattr("deeptutor.reading.quiz.complete", complete)
+    result = await ReadingQuizExtension().run_action("start", _context())
+
+    assert result.type == "quiz"
+    assert [question["id"] for question in result.payload["questions"]] == ["q_1", "q_2"]
+    assert len(calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_quiz_accepts_a_bare_array_envelope(monkeypatch):
+    async def complete(**_kwargs):
+        return json.dumps(
+            [
+                {
+                    "prompt": "Which phrase does the passage verify?",
+                    "choices": [
+                        "An unrelated phrase",
+                        "A checked phrase",
+                        "A guessed phrase",
+                        "An omitted phrase",
+                    ],
+                    "correct_choice_index": 1,
+                    "evidence": "verified phrase supports the answer",
+                }
+            ]
+            * 3
+        )
+
+    monkeypatch.setattr("deeptutor.reading.quiz.complete", complete)
+    result = await ReadingQuizExtension().run_action("start", _context())
+
+    assert result.type == "quiz"
+    assert len(result.payload["questions"]) == 3
+
+
+@pytest.mark.asyncio
+async def test_quiz_serves_a_short_but_real_cjk_question(monkeypatch):
+    # Prod case: "문제는 무엇인가요?" is 10 chars — a complete question that
+    # the old length floor rejected.
+    async def complete(**_kwargs):
+        return json.dumps(
+            {
+                "questions": [
+                    {
+                        "prompt": "문제는 무엇인가요?",
+                        "choices": ["절차적 지식", "사실 지식", "도구 사용", "데이터 수집"],
+                        "correct_choice_index": 0,
+                        "evidence": "verified phrase supports the answer",
+                    }
+                ]
+                * 3
+            }
+        )
+
+    monkeypatch.setattr("deeptutor.reading.quiz.complete", complete)
+    result = await ReadingQuizExtension().run_action("start", _context())
+
+    assert result.type == "quiz"
+    assert len(result.payload["questions"]) == 3
+    assert result.payload["questions"][0]["prompt"] == "문제는 무엇인가요?"
+
+
+@pytest.mark.asyncio
+async def test_quiz_pins_the_ui_locale_for_english_source(monkeypatch):
+    calls = []
+
+    async def complete(**kwargs):
+        calls.append(kwargs)
+        return _model_response()
+
+    monkeypatch.setattr("deeptutor.reading.quiz.complete", complete)
+    context = _context()
+    context.locale = "ko"
+    result = await ReadingQuizExtension().run_action("start", context)
+
+    assert result.title == "읽기 퀴즈"
+    assert "[언어 요구사항" in calls[0]["system_prompt"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("placeholder", ["문제", "题干", "question"])
+async def test_quiz_rejects_template_placeholder_prompts(monkeypatch, placeholder):
+    async def complete(**_kwargs):
+        return json.dumps(
+            {
+                "questions": [
+                    {
+                        "prompt": placeholder,
+                        "choices": ["선택지 A", "선택지 B", "선택지 C", "선택지 D"],
+                        "correct_choice_index": 0,
+                        "evidence": "verified phrase supports the answer",
+                    }
+                ]
+                * 3
+            }
+        )
+
+    monkeypatch.setattr("deeptutor.reading.quiz.complete", complete)
+    with pytest.raises(ValueError):
+        await ReadingQuizExtension().run_action("start", _context())
+
+
 def test_quiz_is_registered_as_a_packaged_extension():
     project = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
     group = project["project"]["entry-points"]["deeptutor.reading_extensions"]
