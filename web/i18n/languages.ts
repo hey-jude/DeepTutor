@@ -24,5 +24,6 @@ export function normalizeLanguage(value: unknown): AppLanguage {
   if (base === "zh" || base === "cn" || code === "chinese") return "zh";
   if (base === "fr" || code === "french") return "fr";
   if (base === "uk" || base === "ua" || code === "ukrainian") return "uk";
+  if (base === "ko" || base === "kr" || code === "korean") return "ko";
   return "en";
 }
