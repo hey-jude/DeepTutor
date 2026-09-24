@@ -11,5 +11,8 @@
   "Evening — what shall we explore?": "저녁이네요 — 무엇을 탐험해 볼까요?",
   "It's late today.": "오늘은 늦은 시간이네요.",
   "Burning the midnight oil?": "밤늦게까지 공부 중이신가요?",
-  "How can I help you today?": "오늘 무엇을 도와드릴까요?"
+  "How can I help you today?": "오늘 무엇을 도와드릴까요?",
+  "Explain this passage": "이 구절을 설명해 줘",
+  "Translate this passage into {{language}}": "이 구절을 {{language}}로 번역해 줘",
+  "Guide me through this passage step by step, without giving the answer away": "이 구절을 단계별로 안내해 주고, 정답을 바로 알려 주지 마세요"
 }
