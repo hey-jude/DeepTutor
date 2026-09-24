@@ -14,6 +14,7 @@ from deeptutor.reading.extensions import (
     ReadingExtensionResult,
 )
 from deeptutor.services.llm import complete
+from deeptutor.services.prompt.language import append_language_directive
 from deeptutor.utils.json_parser import parse_json_response
 
 _MAX_TRANSLATION_CHARS = 12_000
@@ -120,11 +121,16 @@ class TranslationExtension:
         with task_llm_scope(TaskKind.READING_TRANSLATION):
             raw = await complete(
                 prompt=_prompt(context),
-                system_prompt=_SYSTEM_ZH
-                if target_language == "zh"
-                else _SYSTEM_KO
-                if target_language == "ko"
-                else _SYSTEM_EN,
+                # Pin the TARGET language: the source material is usually
+                # English and the model follows it without an explicit order.
+                system_prompt=append_language_directive(
+                    _SYSTEM_ZH
+                    if target_language == "zh"
+                    else _SYSTEM_KO
+                    if target_language == "ko"
+                    else _SYSTEM_EN,
+                    target_language,
+                ),
                 temperature=0.1,
                 max_tokens=5_000,
                 max_retries=0,

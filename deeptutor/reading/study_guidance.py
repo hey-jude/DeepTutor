@@ -15,6 +15,7 @@ from deeptutor.reading.extensions import (
 )
 from deeptutor.services.llm import complete
 from deeptutor.services.llm.structured_retry import json_with_reasoning_retry
+from deeptutor.services.prompt.language import append_language_directive
 from deeptutor.services.prompt.language import is_chinese as _is_zh
 from deeptutor.services.prompt.language import is_korean as _is_ko
 
@@ -90,11 +91,14 @@ class StudyGuidanceExtension:
         async def _run(reasoning_effort: str | None) -> str:
             return await complete(
                 prompt=_prompt(context),
-                system_prompt=_SYSTEM_ZH
-                if _is_zh(context.locale)
-                else _SYSTEM_KO
-                if _is_ko(context.locale)
-                else _SYSTEM_EN,
+                system_prompt=append_language_directive(
+                    _SYSTEM_ZH
+                    if _is_zh(context.locale)
+                    else _SYSTEM_KO
+                    if _is_ko(context.locale)
+                    else _SYSTEM_EN,
+                    context.locale,
+                ),
                 temperature=0.2,
                 max_tokens=2_000,
                 max_retries=0,
