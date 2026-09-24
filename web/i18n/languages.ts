@@ -28,5 +28,6 @@ export function normalizeLanguage(value: unknown): AppLanguage {
   if (base === "de" || code === "german" || code === "deutsch") return "de";
   if (base === "uk" || base === "ua" || code === "ukrainian") return "uk";
   if (base === "pl" || code === "polish" || code === "polski") return "pl";
+  if (base === "ko" || base === "kr" || code === "korean") return "ko";
   return "en";
 }
