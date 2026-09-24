@@ -62,6 +62,7 @@ class BaseAgent(ABC):
         config: dict[str, Any] | None = None,
         token_tracker: Any | None = None,
         log_dir: str | None = None,
+        load_prompts: bool = True,
     ):
         """
         Initialize base Agent.
@@ -133,17 +134,21 @@ class BaseAgent(ABC):
         self.logger = logging.getLogger(f"deeptutor.{logger_name}")
 
         # Load prompts using unified PromptManager
-        try:
-            self.prompts = get_prompt_manager().load_prompts(
-                module_name=module_name,
-                agent_name=agent_name,
-                language=language,
-            )
-            if self.prompts:
-                self.logger.debug(f"Prompts loaded: {agent_name} ({language})")
-        except Exception as e:
-            self.prompts = None
-            self.logger.warning(f"Failed to load prompts for {agent_name}: {e}")
+        # (skipped by agents that carry their prompts inline).
+        if load_prompts:
+            try:
+                self.prompts = get_prompt_manager().load_prompts(
+                    module_name=module_name,
+                    agent_name=agent_name,
+                    language=language,
+                )
+                if self.prompts:
+                    self.logger.debug(f"Prompts loaded: {agent_name} ({language})")
+            except Exception as e:
+                self.prompts = None
+                self.logger.warning(f"Failed to load prompts for {agent_name}: {e}")
+        else:
+            self.prompts = {}
 
     # -------------------------------------------------------------------------
     # Model and Parameter Getters
