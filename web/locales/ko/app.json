@@ -1,7 +1,7 @@
 {
-  "Explain the key argument": "핵심 주장을 설명해 줘",
+  "Explain the key argument": "핵심 주장을 설명해",
   "Challenge this evidence": "이 근거에 반박해 봐",
-  "Turn this into study notes": "학습 노트로 정리해 줘",
+  "Turn this into study notes": "학습 노트로 정리해",
   "Good morning.": "좋은 아침입니다.",
   "Morning — let's learn something.": "아침이네요 — 함께 배워 봐요.",
   "What would you like to learn?": "무엇을 배우고 싶으세요?",
@@ -12,7 +12,12 @@
   "It's late today.": "오늘은 늦은 시간이네요.",
   "Burning the midnight oil?": "밤늦게까지 공부 중이신가요?",
   "How can I help you today?": "오늘 무엇을 도와드릴까요?",
-  "Explain this passage": "이 구절을 설명해 줘",
-  "Translate this passage into {{language}}": "이 구절을 {{language}}로 번역해 줘",
-  "Guide me through this passage step by step, without giving the answer away": "이 구절을 단계별로 안내해 주고, 정답을 바로 알려 주지 마세요"
+  "Explain this passage": "이 구절을 설명해",
+  "Translate this passage into {{language}}": "이 구절을 {{language}}로 번역해",
+  "Guide me through this passage step by step, without giving the answer away": "이 구절을 단계별로 안내하고, 정답을 바로 말하지 마",
+  "Quiz me on this page": "이 페이지로 퀴즈 출제해",
+  "Take me through my {{name}} mistakes one at a time.": "{{name}}에서 틀린 문제를 하나씩 풀게 해.",
+  "Continue this path from where I stopped.": "내가 멈춘 곳부터 이 경로를 이어 가.",
+  "Summarise where I left off, then continue from there.": "내가 읽던 곳까지 요약한 뒤 그다음부터 이어 가.",
+  "Look at what this course has and plan what I should do first.": "이 코스에 무엇이 있는지 살펴보고 무엇부터 할지 계획해."
 }
