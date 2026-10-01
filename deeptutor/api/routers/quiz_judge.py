@@ -135,33 +135,6 @@ def _build_judge_user_prompt(
             )
             parts.append(f"{count_text}，请结合图片中的文字/公式/草图一并判定。")
         parts.append("请针对该学习者的具体作答给出 AI 评判。")
-    elif language == "ko":
-        parts = [
-            f"문제 유형: {question_type or 'unknown'}",
-            f"문제:\n{question}",
-        ]
-        if options_block:
-            parts.append(f"선택지:\n{options_block}")
-        if correct_answer:
-            parts.append(f"모범 답안:\n{correct_answer}")
-        if explanation:
-            parts.append(f"해설:\n{explanation}")
-        parts.append(
-            "학습자 답안:\n"
-            + (
-                user_answer.strip()
-                if user_answer and user_answer.strip()
-                else "(이미지만 제출되었고 텍스트 답안은 없습니다)"
-            )
-        )
-        if has_image:
-            count_text = (
-                f"학습자가 답안의 일부로 {image_count}장의 이미지를 첨부했습니다"
-                if image_count > 1
-                else "학습자가 답안의 일부로 이미지를 첨부했습니다"
-            )
-            parts.append(f"{count_text}. 이미지의 텍스트/수식/스케치를 읽고 판정에 반영하세요.")
-        parts.append("이 학습자의 구체적인 답안에 대해 AI 판정을 생성하세요.")
     else:
         parts = [
             f"Question type: {question_type or 'unknown'}",
