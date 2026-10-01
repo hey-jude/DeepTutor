@@ -59,19 +59,28 @@ def _load_prompts(language: str) -> dict[str, Any]:
     cached = _PROMPT_CACHE.get(lang)
     if cached is not None:
         return cached
-    try:
-        text = (
-            resources.files(__package__)
-            .joinpath("prompts", lang, "course_study.yaml")
-            .read_text(encoding="utf-8")
-        )
-        data = yaml.safe_load(text)
-    except Exception:
-        logger.warning("failed to load Course Study prompts (%s)", lang, exc_info=True)
-        data = None
-    result = data if isinstance(data, dict) else {}
-    _PROMPT_CACHE[lang] = result
-    return result
+    # Prompt files may not ship every resolved language; fall back to en
+    # instead of running with empty prompts.
+    candidates = (lang, "en") if lang != "en" else (lang,)
+    for candidate in candidates:
+        try:
+            text = (
+                resources.files(__package__)
+                .joinpath("prompts", candidate, "course_study.yaml")
+                .read_text(encoding="utf-8")
+            )
+            data = yaml.safe_load(text)
+        except FileNotFoundError:
+            continue
+        except Exception:
+            logger.warning("failed to load Course Study prompts (%s)", candidate, exc_info=True)
+            data = None
+        if isinstance(data, dict):
+            _PROMPT_CACHE[lang] = data
+            return data
+    logger.warning("failed to load Course Study prompts (%s), using empty prompts", lang)
+    _PROMPT_CACHE[lang] = {}
+    return _PROMPT_CACHE[lang]
 
 
 def resolve_course_id(context: UnifiedContext) -> str:
