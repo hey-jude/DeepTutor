@@ -482,8 +482,6 @@ def _pick_language(language: str | None) -> str:
         return "de"
     if code in {"uk", "uk-ua", "ukrainian", "ua"}:
         return "uk"
-    if code in {"ko", "ko-kr", "korean", "kr"} or code.startswith("ko"):
-        return "ko"
     return "en"
 
 
@@ -502,7 +500,7 @@ def resolve_language(default: str = "en") -> str:
 
 
 def labels_for(language: str | None) -> dict[str, str]:
-    return LABELS.get(_pick_language(language), LABELS["en"])
+    return LABELS[_pick_language(language)]
 
 
 def render_banner(language: str | None, *, mode_key: str | None = None) -> Panel:
@@ -518,7 +516,7 @@ def render_banner(language: str | None, *, mode_key: str | None = None) -> Panel
     """
 
     lang = _pick_language(language)
-    strings = LABELS.get(lang, LABELS["en"])
+    strings = LABELS[lang]
 
     logo = Text(_ASCII_LOGO, style="bold bright_cyan")
     tagline_line = f"{strings['tagline']}  ·  v{__version__}"
