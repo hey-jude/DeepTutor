@@ -67,7 +67,11 @@ _TOOL_HINT_MAX_CHARS = 120
 # Channels that post the "thinking…" notice and retract it when the answer
 # starts arriving. Opt-in: a channel that cannot retract would leave it behind.
 _THINKING_NOTICE_CHANNELS = frozenset({"feishu"})
-_THINKING_NOTICES = {"zh": "🤔 正在思考…", "en": "🤔 Thinking…"}
+_THINKING_NOTICES = {
+    "zh": "🤔 正在思考…",
+    "en": "🤔 Thinking…",
+    "ko": "🤔 생각 중…",
+}
 
 
 @dataclass(frozen=True, slots=True)
